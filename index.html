@@ -507,29 +507,30 @@
         let isCloudConnected = false;
         let editingDictId = null;
 
-        // 預設詞庫初始種子資料
+        // 預設詞庫初始種子資料 (優化關鍵字涵蓋度)
         const INITIAL_DEFAULT_DICTIONARY = [
-            { id: "d1", keyword: "under-chassis wheelchair lift", zh: "安裝底盤下自動輪椅升降台", category: "車身裝嵌", model: "WAKO VK131" },
-            { id: "d2", keyword: "wheelchair lift", zh: "安裝輪椅升降台", category: "車身裝嵌", model: "WAKO VK132" },
-            { id: "d3", keyword: "passenger seats", zh: "安裝高背 PVC 乘客座位（連三點式安全帶及可摺手枕）", category: "車身裝嵌", model: "Reen seat" },
-            { id: "d4", keyword: "Innotrax flooring", zh: "安裝鋁合金 Innotrax 地台路軌及防滑地膠", category: "車身裝嵌", model: "Innotrax" },
-            { id: "d5", keyword: "webbing securement kits", zh: "提供及安裝 4 點式輪椅固定帶套件（承載力 200kg）", category: "其他", model: "NMI WTORS" },
-            { id: "d6", keyword: "auto step", zh: "安裝側摺門下電動伸縮踏板", category: "車身裝嵌", model: "THULE 700ALU" },
-            { id: "d7", keyword: "half step", zh: "安裝中門半腳踏", category: "車身裝嵌", model: "-" },
-            { id: "d8", keyword: "brake & indicator", zh: "安裝車尾頂部煞車燈/方向燈及「升降中」燈箱連射燈", category: "電器", model: "LB_A_01" },
-            { id: "d9", keyword: "parking sensor", zh: "安裝倒後泊車雷達及連駕駛台顯示屏的倒車 CCTV 鏡頭", category: "電器", model: "CCTV_6inch" },
-            { id: "10", keyword: "anti-theft", zh: "安裝防盜系統", category: "電器", model: "-" },
-            { id: "d11", keyword: "door not properly closed", zh: "安裝車門未關緊警告訊號裝置", category: "電器", model: "WARN_01" },
-            { id: "d12", keyword: "reflective marking", zh: "安裝尾門內側紅黃反光鋁板 / 反光牌", category: "其他", model: "RP_01A" },
-            { id: "d13", keyword: "handrails", zh: "安裝中門及車窗連軟墊的不銹鋼扶手", category: "車身裝嵌", model: "-" },
-            { id: "d14", keyword: "rustproofing", zh: "提供防銹處理", category: "其他", model: "-" },
-            { id: "d15", keyword: "mudguards", zh: "安裝纖維轆輁 / 擋泥板", category: "車身裝嵌", model: "FW_C_01" },
-            { id: "d16", keyword: "logo and lettering", zh: "噴塗車身顏色、機構標識及字樣", category: "其他", model: "-" },
-            { id: "d17", keyword: "infrared device", zh: "安裝倒車紅外線防撞感應器", category: "電器", model: "IR_SENS_01" },
-            { id: "d18", keyword: "electric fan", zh: "安裝駕駛室風扇", category: "電器", model: "FAN_12V" },
-            { id: "d19", keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_SET" },
-            { id: "d20", keyword: "TA Approval", zh: "安排車輛類型評核 (TA Approval) 審批手續及驗車", category: "其他", model: "TA_APP" },
-            { id: "d21", keyword: "PVC cover for all passenger seats", zh: "提供所有乘客座位透明 PVC 保護套", category: "其他", model: "-" }
+            { id: "d1", keyword: "wheelchair lift, VK131", zh: "安裝底盤下自動輪椅升降台", category: "車身裝嵌", model: "WAKO VK131" },
+            { id: "d2", keyword: "wheelchair lift, VK132", zh: "安裝輪椅升降台", category: "車身裝嵌", model: "WAKO VK132" },
+            { id: "d3", keyword: "wheelchair lift", zh: "安裝輪椅升降台", category: "車身裝嵌", model: "WAKO VK131" },
+            { id: "d4", keyword: "passenger seats", zh: "安裝高背 PVC 乘客座位（連三點式安全帶及可摺手枕）", category: "車身裝嵌", model: "Reen seat" },
+            { id: "d5", keyword: "flooring", zh: "安裝地台路軌 / 防滑地膠", category: "車身裝嵌", model: "Innotrax" },
+            { id: "d6", keyword: "webbing securement", zh: "提供及安裝 4 點式輪椅固定帶套件（承載力 200kg）", category: "其他", model: "NMI WTORS" },
+            { id: "d7", keyword: "auto step", zh: "安裝側摺門下電動伸縮踏板", category: "車身裝嵌", model: "THULE 700ALU" },
+            { id: "d8", keyword: "half step", zh: "安裝中門半腳踏", category: "車身裝嵌", model: "-" },
+            { id: "d9", keyword: "brake & indicator", zh: "安裝車尾頂部煞車燈/方向燈及「升降中」燈箱連射燈", category: "電器", model: "LB_A_01" },
+            { id: "d10", keyword: "parking sensor", zh: "安裝倒後泊車雷達及連駕駛台顯示屏的倒車 CCTV 鏡頭", category: "電器", model: "CCTV_6inch" },
+            { id: "d11", keyword: "anti-theft", zh: "安裝防盜系統", category: "電器", model: "-" },
+            { id: "d12", keyword: "door not properly closed", zh: "安裝車門未關緊警告訊號裝置", category: "電器", model: "WARN_01" },
+            { id: "d13", keyword: "reflective", zh: "安裝尾門內側紅黃反光鋁板 / 反光牌", category: "其他", model: "RP_01A" },
+            { id: "d14", keyword: "handrails", zh: "安裝中門及車窗連軟墊的不銹鋼扶手", category: "車身裝嵌", model: "-" },
+            { id: "d15", keyword: "rustproofing", zh: "提供防銹處理", category: "其他", model: "-" },
+            { id: "d16", keyword: "mudguards", zh: "安裝纖維轆輁 / 擋泥板", category: "車身裝嵌", model: "FW_C_01" },
+            { id: "d17", keyword: "logo and lettering", zh: "噴塗車身顏色、機構標識及字樣", category: "其他", model: "-" },
+            { id: "d18", keyword: "infrared device", zh: "安裝倒車紅外線防撞感應器", category: "電器", model: "IR_SENS_01" },
+            { id: "d19", keyword: "electric fan", zh: "安裝駕駛室風扇", category: "電器", model: "FAN_12V" },
+            { id: "20", keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_SET" },
+            { id: "d21", keyword: "TA Approval", zh: "安排車輛類型評核 (TA Approval) 審批手續及驗車", category: "其他", model: "TA_APP" },
+            { id: "d22", keyword: "PVC cover", zh: "提供所有乘客座位透明 PVC 保護套", category: "其他", model: "-" }
         ];
 
         let dictionary = [...INITIAL_DEFAULT_DICTIONARY];
@@ -900,7 +901,7 @@
                 const allMatched = subKeywords.every(kw => cleanEn.includes(kw));
 
                 if (allMatched) {
-                    // 計算精準度得分：關鍵字數量越多、長度越長，分數越高（即比單一通用關鍵字優先選用）
+                    // 計算精準度得分：關鍵字數量越多、長度越長，分數越高
                     const score = subKeywords.reduce((sum, kw) => sum + kw.length, 0) + (subKeywords.length * 20);
                     if (score > highestScore) {
                         highestScore = score;
@@ -1023,43 +1024,22 @@
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
-                    
-                    let items = textContent.items;
-                    items.sort((a, b) => {
-                        if (Math.abs(a.transform[5] - b.transform[5]) > 4) {
-                            return b.transform[5] - a.transform[5];
-                        }
-                        return a.transform[4] - b.transform[4];
-                    });
-
-                    let currentY = null;
-                    let currentLine = "";
-
-                    for (let item of items) {
-                        if (currentY === null || Math.abs(item.transform[5] - currentY) > 4) {
-                            if (currentLine.trim()) fullLines.push(currentLine.trim());
-                            currentY = item.transform[5];
-                            currentLine = item.str;
-                        } else {
-                            currentLine += " " + item.str;
-                        }
-                    }
-                    if (currentLine.trim()) fullLines.push(currentLine.trim());
-                }
-                parseQuotationLines(fullLines);
-            }
-        }
-
+        // 跨行 PDF 解析器 (自動拼合多行項目描述)
         function parseQuotationLines(lines) {
             let extractedItems = [];
-            
-            lines.forEach(line => {
+            let currentItem = "";
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (!line) continue;
+
+                // 表頭元數據抓取
                 if (line.includes("Our ref") || line.includes("Our Ref")) {
                     const refMatch = line.match(/NTL-Q-[0-9-]+/i);
                     if (refMatch) {
                         const qNo = refMatch[0];
                         document.getElementById('meta-contract-no').value = qNo;
-                        const modNum = qNo.replace("NTL-Q-", "").replace("-2026", "").replace("-2025", "").replace("-2024", "");
+                        const modNum = qNo.replace(/NTL-Q-/i, "").replace(/-202\d/g, "");
                         document.getElementById('meta-mod-no').value = `NTL-MOD-26-${modNum.padStart(3, '0')}`;
                     }
                 }
@@ -1068,7 +1048,7 @@
                     let cust = line.replace(/To\s*:/i, "").trim();
                     document.getElementById('meta-customer').value = cust;
                 } else if (line.includes("Crown Motors Limited") || line.includes("Sime Darby")) {
-                    let custName = line.split("Our ref")[0].trim();
+                    let custName = line.split(/Our ref/i)[0].trim();
                     document.getElementById('meta-customer').value = custName;
                 }
 
@@ -1092,13 +1072,34 @@
                     document.getElementById('meta-preparer').value = "Vincy";
                 }
 
-                if (/^\d+\.\s+Supply/i.test(line) || /^Supply\s+(and|material)/i.test(line)) {
-                    const cleanItem = line.replace(/^\d+\.\s*/, "").trim();
-                    if (!cleanItem.includes("Room A") && !cleanItem.includes("Infotech Centre")) {
-                        extractedItems.push(cleanItem);
-                    }
+                // 過濾頁眉頁腳與頁面備註雜訊
+                if (line.includes("Infotech Centre") || line.includes("Hung To Road") || 
+                    line.includes("Tel:") || line.includes("Fax:") || line.includes("E-mail:") ||
+                    line.startsWith("Remarks:") || line.includes("Total Amount:") ||
+                    line.includes("Yours sincerely") || line.includes("Confirmed & Accepted") ||
+                    line.includes("Authorized Chop") || line.includes("Unit Price") ||
+                    line.startsWith("Description")) {
+                    continue;
                 }
-            });
+
+                // 判斷是否為項目開頭 (如 "1. Supply...", "2. Supply...")
+                const numMatch = line.match(/^(\d+)\.\s*(.*)/);
+                if (numMatch) {
+                    if (currentItem.trim()) {
+                        extractedItems.push(currentItem.trim());
+                    }
+                    currentItem = numMatch[2]; // 開始記錄新項目
+                } else if (!numMatch && /^Supply\s+/i.test(line) && !currentItem) {
+                    currentItem = line;
+                } else if (currentItem) {
+                    // 如果是換行繼續的項目內容，合併至當前項目中
+                    currentItem += " " + line;
+                }
+            }
+
+            if (currentItem.trim()) {
+                extractedItems.push(currentItem.trim());
+            }
 
             currentParsedItems = extractedItems.map(enText => {
                 const matched = matchDictionary(enText);
