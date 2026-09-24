@@ -312,10 +312,25 @@
                 
                 <!-- Top Toolbar for Preview -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap justify-between items-center gap-4 no-print">
-                    <div class="flex items-center gap-2">
-                        <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded">即時渲染預覽</span>
-                        <p class="text-xs text-slate-500">此頁面展現標準 NTL-MOD-002A 生產通知單排版，可直接列印或導出 Word。</p>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded">即時渲染預覽</span>
+                            <p class="text-xs text-slate-500">此頁面展現標準 NTL-MOD-002A 生產通知單排版，可直接列印或導出 Word。</p>
+                        </div>
+                        
+                        <!-- Show / Hide Section Controls -->
+                        <div class="flex items-center gap-3 border-l border-slate-200 pl-4 py-0.5">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none hover:text-brand-700">
+                                <input type="checkbox" v-model="showComplianceSection" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                                顯示「質量與法規合規要求」
+                            </label>
+                            <label class="flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none hover:text-brand-700">
+                                <input type="checkbox" v-model="showSignaturesSection" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                                顯示「部門簽署」
+                            </label>
+                        </div>
                     </div>
+
                     <div class="flex flex-wrap gap-2">
                         <button @click="printForm" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
                             <i class="fa-solid fa-print"></i> 列印 / 另存 PDF
@@ -441,65 +456,69 @@
                     </table>
 
                     <!-- Section III: Quality & Compliance Requirements -->
-                    <div class="bg-slate-800 text-white font-bold text-sm px-2 py-1 mb-1 border border-black">
-                        三、質量與法規合規要求
-                    </div>
-                    <table class="w-full table-form mb-4 border-collapse text-xs">
-                        <tr>
-                            <td class="font-bold w-32 bg-slate-50">品質管理部</td>
-                            <td class="space-x-4">
-                                <label><input type="checkbox" checked> 已完全滿足交付品質要求</label>
-                                <label><input type="checkbox"> 需安排後續跟進</label>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="font-bold bg-slate-50">檢驗及類型評核部</td>
-                            <td class="space-x-4">
-                                <label><input type="checkbox" checked> 已符合運輸署法規及驗車標準</label>
-                                <label><input type="checkbox"> 需安排第三方機構測試</label>
-                                <label><input type="checkbox"> 規格需進一步修正</label>
-                            </td>
-                        </tr>
-                    </table>
+                    <template v-if="showComplianceSection">
+                        <div class="bg-slate-800 text-white font-bold text-sm px-2 py-1 mb-1 border border-black">
+                            三、質量與法規合規要求
+                        </div>
+                        <table class="w-full table-form mb-4 border-collapse text-xs">
+                            <tr>
+                                <td class="font-bold w-32 bg-slate-50">品質管理部</td>
+                                <td class="space-x-4">
+                                    <label><input type="checkbox" checked> 已完全滿足交付品質要求</label>
+                                    <label><input type="checkbox"> 需安排後續跟進</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold bg-slate-50">檢驗及類型評核部</td>
+                                <td class="space-x-4">
+                                    <label><input type="checkbox" checked> 已符合運輸署法規及驗車標準</label>
+                                    <label><input type="checkbox"> 需安排第三方機構測試</label>
+                                    <label><input type="checkbox"> 規格需進一步修正</label>
+                                </td>
+                            </tr>
+                        </table>
+                    </template>
 
                     <!-- Signatures Section -->
-                    <div class="bg-slate-100 font-bold text-xs px-2 py-1 mb-1 border border-black">
-                        部門簽署：
-                    </div>
-                    <table class="w-full table-form border-collapse text-xs">
-                        <tr class="bg-slate-50 font-bold text-center">
-                            <td class="w-1/4">項目部</td>
-                            <td class="w-1/4">技術及生產部</td>
-                            <td class="w-1/4">品質管理部</td>
-                            <td class="w-1/4">檢驗及類型評核部</td>
-                        </tr>
-                        <tr class="h-16">
-                            <td>
-                                <div class="flex flex-col justify-between h-full text-slate-400">
-                                    <span>簽署：</span>
-                                    <span>員工編號：____________</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="flex flex-col justify-between h-full text-slate-400">
-                                    <span>簽署：</span>
-                                    <span>員工編號：____________</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="flex flex-col justify-between h-full text-slate-400">
-                                    <span>簽署：</span>
-                                    <span>員工編號：____________</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="flex flex-col justify-between h-full text-slate-400">
-                                    <span>簽署：</span>
-                                    <span>員工編號：____________</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
+                    <template v-if="showSignaturesSection">
+                        <div class="bg-slate-100 font-bold text-xs px-2 py-1 mb-1 border border-black">
+                            部門簽署：
+                        </div>
+                        <table class="w-full table-form border-collapse text-xs">
+                            <tr class="bg-slate-50 font-bold text-center">
+                                <td class="w-1/4">項目部</td>
+                                <td class="w-1/4">技術及生產部</td>
+                                <td class="w-1/4">品質管理部</td>
+                                <td class="w-1/4">檢驗及類型評核部</td>
+                            </tr>
+                            <tr class="h-16">
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </template>
 
                 </div>
             </div>
@@ -702,6 +721,8 @@ Supply and install 1 set of anti-theft system
             data() {
                 return {
                     activeTab: 'matching',
+                    showComplianceSection: true,
+                    showSignaturesSection: true,
                     dictionary: [...INITIAL_DICTIONARY],
                     dictSearchQuery: '',
                     dictCategoryFilter: '',
