@@ -15,15 +15,32 @@
     </script>
     <!-- SheetJS for Excel handling -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Firebase SDK (v11.6.1) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 全局掛載 Firebase 模組供前端腳本呼叫
+        window.FirebaseSDK = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken,
+            onAuthStateChanged, getFirestore, doc, getDoc, setDoc, addDoc,
+            updateDoc, deleteDoc, onSnapshot, collection, query, getDocs
+        };
+
+        // 觸發自訂事件通知 Firebase 模組載入完成
+        window.dispatchEvent(new Event('firebase-sdk-ready'));
+    </script>
+
     <style>
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; padding: 0 !important; }
-            .print-container { shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+            .print-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
             @page { size: A4 portrait; margin: 10mm; }
         }
         
-        /* 預覽表格精確樣式 */
         .preview-table {
             border-collapse: collapse;
             width: 100%;
@@ -46,7 +63,6 @@
             text-align: center;
             white-space: nowrap;
         }
-        /* 緊湊單行標頭專用 */
         .meta-compact-td {
             padding: 3px 6px !important;
             height: 28px !important;
@@ -62,14 +78,21 @@
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans pb-12">
 
     <!-- 頂部導航列 -->
-    <header class="bg-slate-900 text-white shadow-lg no-print">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+    <header class="bg-slate-900 text-white shadow-lg no-print sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
             <div class="flex items-center space-x-3">
                 <div class="bg-blue-600 p-2.5 rounded-lg shadow-inner">
                     <i class="fa-solid fa-truck-monster text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-wide">車輛改裝通知單 (Job Sheet)製作系統</h1>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-xl font-bold tracking-wide">車輛改裝通知單 (Job Sheet)製作系統</h1>
+                        <!-- 雲端同步狀態標籤 -->
+                        <span id="cloud-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="cloud-status-dot"></span>
+                            <span id="cloud-status-text">連線至 Firebase...</span>
+                        </span>
+                    </div>
                     <p class="text-xs text-slate-400">新力機械有限公司 (New Tech Motor Engineering Ltd.)</p>
                 </div>
             </div>
@@ -93,6 +116,12 @@
 
     <main class="max-w-7xl mx-auto px-4 mt-6">
 
+        <!-- 通知彈窗 Toast -->
+        <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 pointer-events-none">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+            <span id="toast-msg" class="text-sm font-medium">通知訊息</span>
+        </div>
+
         <!-- ================= 步驟 1: 報價單解析與對照 ================= -->
         <section id="step1-page" class="space-y-6">
             
@@ -104,7 +133,7 @@
                             <i class="fa-solid fa-file-arrow-up text-blue-600"></i>
                             <span>步驟 1：載入或貼上英文報價單文字</span>
                         </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">系統會以設定好的詞庫進行自動比對，並為每個項目匹配預設中文，您可隨時透過下拉選單調整。</p>
+                        <p class="text-xs text-slate-500 mt-0.5">系統會以 Firebase 雲端詞庫進行自動比對，並為每個項目匹配預設中文，您可隨時透過下拉選單調整。</p>
                     </div>
                     
                     <div class="flex items-center space-x-3">
@@ -173,7 +202,6 @@
                 </div>
             </div>
 
-            <!-- 對照編輯區域 -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center flex-wrap gap-3">
                     <h3 class="font-bold text-slate-800 flex items-center gap-2">
@@ -213,7 +241,7 @@
 
                 <div id="empty-state" class="p-12 text-center text-slate-400">
                     <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
-                    <p class="text-sm">暫無資料，請點擊上方「上傳檔案」。</p>
+                    <p class="text-sm">暫無資料，請點擊上方「上傳 PDF / Excel / TXT」。</p>
                 </div>
             </div>
 
@@ -369,31 +397,53 @@
             </div>
         </section>
 
-        <!-- ================= 步驟 3: 英文詞庫資料庫管理 ================= -->
+        <!-- ================= 步驟 3: 英文詞庫資料庫管理 (Firebase 雲端同步) ================= -->
         <section id="step3-page" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center flex-wrap gap-4 mb-4">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-book text-blue-600"></i>
-                            <span>常用英文對照詞庫庫管理</span>
-                        </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">系統會自動拿上傳報價單中的關鍵字搜尋此詞庫，並帶出對應的標準中文名稱與類別。</p>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-cloud text-blue-600"></i>
+                                <span>常用英文對照詞庫庫管理 (Firebase 雲端同步)</span>
+                            </h2>
+                            <span id="dict-sync-status" class="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-wifi text-[10px]"></i> 團隊雲端連線中
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-0.5">所有新增、編輯與刪除都會**即時同步至 Firebase 雲端**，全公司所有同事均能共享最新詞庫。</p>
                     </div>
-                    <button onclick="addDictItem()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition">
-                        <i class="fa-solid fa-plus mr-1"></i> 新增詞庫項目
-                    </button>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="openAddDictModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>新增詞庫項目</span>
+                        </button>
+                        <button onclick="exportDictionaryJson()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i>
+                            <span>匯出詞庫 (JSON)</span>
+                        </button>
+                        <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-300 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-import"></i>
+                            <span>匯入詞庫</span>
+                            <input type="file" accept=".json" class="hidden" onchange="importDictionaryJson(event)">
+                        </label>
+                        <button onclick="resetDefaultDictionaryPrompt()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold px-3 py-2 rounded-xl border border-rose-200 transition">
+                            重設預設詞庫
+                        </button>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto border border-slate-200 rounded-xl">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                             <tr>
-                                <th class="py-3 px-4">英文關鍵字 (EN Keyword)</th>
-                                <th class="py-3 px-4">對應標準中文名稱 (Chinese Item)</th>
-                                <th class="py-3 px-4">預設類別</th>
-                                <th class="py-3 px-4">預設型號</th>
-                                <th class="py-3 px-4 text-center">操作</th>
+                                <th class="py-3 px-4 w-10 text-center">#</th>
+                                <th class="py-3 px-4 w-4/12">英文關鍵字 (EN Keyword)</th>
+                                <th class="py-3 px-4 w-4/12">對應標準中文名稱 (Chinese Item)</th>
+                                <th class="py-3 px-4 w-2/12">預設類別</th>
+                                <th class="py-3 px-4 w-2/12">預設型號</th>
+                                <th class="py-3 px-4 text-center w-24">操作</th>
                             </tr>
                         </thead>
                         <tbody id="dict-tbody" class="divide-y divide-slate-200">
@@ -406,45 +456,386 @@
 
     </main>
 
-    <!-- 腳本邏輯 -->
+    <!-- 新增 / 編輯詞庫 Modal 彈窗 -->
+    <div id="dict-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 id="dict-modal-title" class="font-bold text-slate-800 text-base">新增詞庫對照項目</h3>
+                <button onclick="closeDictModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">英文關鍵字 (Keyword)</label>
+                    <input type="text" id="modal-kw" placeholder="例: wheelchair lift" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">標準中文名稱</label>
+                    <input type="text" id="modal-zh" placeholder="例: 安裝輪椅升降台" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">預設類別</label>
+                        <select id="modal-cat" class="w-full p-2 border rounded-lg bg-white">
+                            <option value="車身裝嵌">車身裝嵌</option>
+                            <option value="電器">電器</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">預設型號 / 編號</label>
+                        <input type="text" id="modal-model" placeholder="例: WAKO VK131" class="w-full p-2 border rounded-lg font-mono">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeDictModal()" class="px-4 py-2 border rounded-lg text-xs hover:bg-slate-50">取消</button>
+                <button onclick="saveDictModalItem()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow">儲存並即時雲端同步</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 腳本邏輯與 Firebase 整合 -->
     <script>
-        // ================= 預設字典庫資料 (Dictionary) =================
-        let dictionary = [
-            { id: 1, keyword: "under-chassis wheelchair lift", zh: "安裝底盤下自動輪椅升降台", category: "車身裝嵌", model: "WAKO VK131" },
-            { id: 2, keyword: "wheelchair lift", zh: "安裝輪椅升降台", category: "車身裝嵌", model: "WAKO VK132" },
-            { id: 3, keyword: "passenger seats", zh: "安裝高背 PVC 乘客座位（連三點式安全帶及可摺手枕）", category: "車身裝嵌", model: "Reen seat" },
-            { id: 4, keyword: "Innotrax flooring", zh: "安裝鋁合金 Innotrax 地台路軌及防滑地膠", category: "車身裝嵌", model: "Innotrax" },
-            { id: 5, keyword: "webbing securement kits", zh: "提供及安裝 4 點式輪椅固定帶套件（承載力 200kg）", category: "其他", model: "NMI WTORS" },
-            { id: 6, keyword: "auto step", zh: "安裝側摺門下電動伸縮踏板", category: "車身裝嵌", model: "THULE 700ALU" },
-            { id: 7, keyword: "half step", zh: "安裝中門半腳踏", category: "車身裝嵌", model: "-" },
-            { id: 8, keyword: "brake & indicator", zh: "安裝車尾頂部煞車燈/方向燈及「升降中」燈箱連射燈", category: "電器", model: "LB_A_01" },
-            { id: 9, keyword: "parking sensor", zh: "安裝倒後泊車雷達及連駕駛台顯示屏的倒車 CCTV 鏡頭", category: "電器", model: "CCTV_6inch" },
-            { id: 10, keyword: "anti-theft", zh: "安裝防盜系統", category: "電器", model: "-" },
-            { id: 11, keyword: "door not properly closed", zh: "安裝車門未關緊警告訊號裝置", category: "電器", model: "WARN_01" },
-            { id: 12, keyword: "reflective marking", zh: "安裝尾門內側紅黃反光鋁板 / 反光牌", category: "其他", model: "RP_01A" },
-            { id: 13, keyword: "handrails", zh: "安裝中門及車窗連軟墊的不銹鋼扶手", category: "車身裝嵌", model: "-" },
-            { id: 14, keyword: "rustproofing", zh: "提供防銹處理", category: "其他", model: "-" },
-            { id: 15, keyword: "mudguards", zh: "安裝纖維轆輁 / 擋泥板", category: "車身裝嵌", model: "FW_C_01" },
-            { id: 16, keyword: "logo and lettering", zh: "噴塗車身顏色、機構標識及字樣", category: "其他", model: "-" },
-            { id: 17, keyword: "infrared device", zh: "安裝倒車紅外線防撞感應器", category: "電器", model: "IR_SENS_01" },
-            { id: 18, keyword: "electric fan", zh: "安裝駕駛室風扇", category: "電器", model: "FAN_12V" },
-            { id: 19, keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_SET" },
-            { id: 20, keyword: "TA Approval", zh: "安排車輛類型評核 (TA Approval) 審批手續及驗車", category: "其他", model: "TA_APP" },
-            { id: 21, keyword: "PVC cover for all passenger seats", zh: "提供所有乘客座位透明 PVC 保護套", category: "其他", model: "-" }
+        // 全局狀態
+        let db = null;
+        let auth = null;
+        let isCloudConnected = false;
+        let editingDictId = null;
+
+        // 預設詞庫初始種子資料
+        const INITIAL_DEFAULT_DICTIONARY = [
+            { id: "d1", keyword: "under-chassis wheelchair lift", zh: "安裝底盤下自動輪椅升降台", category: "車身裝嵌", model: "WAKO VK131" },
+            { id: "d2", keyword: "wheelchair lift", zh: "安裝輪椅升降台", category: "車身裝嵌", model: "WAKO VK132" },
+            { id: "d3", keyword: "passenger seats", zh: "安裝高背 PVC 乘客座位（連三點式安全帶及可摺手枕）", category: "車身裝嵌", model: "Reen seat" },
+            { id: "d4", keyword: "Innotrax flooring", zh: "安裝鋁合金 Innotrax 地台路軌及防滑地膠", category: "車身裝嵌", model: "Innotrax" },
+            { id: "d5", keyword: "webbing securement kits", zh: "提供及安裝 4 點式輪椅固定帶套件（承載力 200kg）", category: "其他", model: "NMI WTORS" },
+            { id: "d6", keyword: "auto step", zh: "安裝側摺門下電動伸縮踏板", category: "車身裝嵌", model: "THULE 700ALU" },
+            { id: "d7", keyword: "half step", zh: "安裝中門半腳踏", category: "車身裝嵌", model: "-" },
+            { id: "d8", keyword: "brake & indicator", zh: "安裝車尾頂部煞車燈/方向燈及「升降中」燈箱連射燈", category: "電器", model: "LB_A_01" },
+            { id: "d9", keyword: "parking sensor", zh: "安裝倒後泊車雷達及連駕駛台顯示屏的倒車 CCTV 鏡頭", category: "電器", model: "CCTV_6inch" },
+            { id: "10", keyword: "anti-theft", zh: "安裝防盜系統", category: "電器", model: "-" },
+            { id: "d11", keyword: "door not properly closed", zh: "安裝車門未關緊警告訊號裝置", category: "電器", model: "WARN_01" },
+            { id: "d12", keyword: "reflective marking", zh: "安裝尾門內側紅黃反光鋁板 / 反光牌", category: "其他", model: "RP_01A" },
+            { id: "d13", keyword: "handrails", zh: "安裝中門及車窗連軟墊的不銹鋼扶手", category: "車身裝嵌", model: "-" },
+            { id: "d14", keyword: "rustproofing", zh: "提供防銹處理", category: "其他", model: "-" },
+            { id: "d15", keyword: "mudguards", zh: "安裝纖維轆輁 / 擋泥板", category: "車身裝嵌", model: "FW_C_01" },
+            { id: "d16", keyword: "logo and lettering", zh: "噴塗車身顏色、機構標識及字樣", category: "其他", model: "-" },
+            { id: "d17", keyword: "infrared device", zh: "安裝倒車紅外線防撞感應器", category: "電器", model: "IR_SENS_01" },
+            { id: "d18", keyword: "electric fan", zh: "安裝駕駛室風扇", category: "電器", model: "FAN_12V" },
+            { id: "d19", keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_SET" },
+            { id: "d20", keyword: "TA Approval", zh: "安排車輛類型評核 (TA Approval) 審批手續及驗車", category: "其他", model: "TA_APP" },
+            { id: "d21", keyword: "PVC cover for all passenger seats", zh: "提供所有乘客座位透明 PVC 保護套", category: "其他", model: "-" }
         ];
 
-        // 應用程式核心狀態
+        let dictionary = [...INITIAL_DEFAULT_DICTIONARY];
         let currentParsedItems = [];
 
-        // 初始化
-        window.onload = function() {
-            setTodayDate();
-            updateDictCount();
-            renderDictTable();
-            renderMappingRows();
-        };
+        // 全局常量：應用程式識別碼與 Firebase strict 雲端路徑
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ntl-job-sheet-app';
 
-        // 設定今天日期及推算預設交付日期 (+8個月)
+        // 頁面初始化
+        window.addEventListener('load', () => {
+            setTodayDate();
+            loadDictionaryFromLocalStorage();
+            renderDictTable();
+            updateDictCount();
+        });
+
+        window.addEventListener('firebase-sdk-ready', () => {
+            initFirebaseAndFirestore();
+        });
+
+        // 顯示提示 Toast
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const text = document.getElementById('toast-msg');
+
+            text.textContent = msg;
+            icon.className = isError ? "fa-solid fa-triangle-exclamation text-rose-400 text-lg" : "fa-solid fa-circle-check text-emerald-400 text-lg";
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // 初始化 Firebase 與 Firestore 實時連線
+        async function initFirebaseAndFirestore() {
+            const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, collection, onSnapshot, doc, setDoc } = window.FirebaseSDK;
+
+            let firebaseConfig = null;
+            if (typeof __firebase_config !== 'undefined') {
+                try {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                } catch (e) {
+                    console.warn('解析 __firebase_config 失敗', e);
+                }
+            }
+
+            // 使用您提供的專屬 Firebase 配置
+            if (!firebaseConfig) {
+                firebaseConfig = {
+                    apiKey: "AIzaSyAVSqdFFoepdwrRtxGjyoSBPwHlfxORGd8",
+                    authDomain: "newtech-system.firebaseapp.com",
+                    projectId: "newtech-system",
+                    storageBucket: "newtech-system.firebasestorage.app",
+                    messagingSenderId: "871887832252",
+                    appId: "1:871887832252:web:f5eb009e95bc267a87fcb9",
+                    measurementId: "G-JND76928FM"
+                };
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // 嚴格依據 Rule 3：先完成 Auth 再執行 Firestore 查詢
+                let userCred;
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    userCred = await signInAnonymously(auth);
+                }
+
+                if (!userCred || !userCred.user) {
+                    throw new Error("Firebase 身份驗證失敗");
+                }
+
+                // 嚴格依據 Rule 1：公共 shared 資料路徑
+                const dictCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'dictionary');
+
+                // 訂閱實時變更 (Realtime listener)
+                onSnapshot(dictCollRef, (snapshot) => {
+                    const items = [];
+                    snapshot.forEach(docSnap => {
+                        items.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+
+                    if (items.length > 0) {
+                        dictionary = items;
+                        saveDictionaryToLocalStorage();
+                        renderDictTable();
+                        updateDictCount();
+                        updateCloudStatus(true, "Firebase 團隊雲端同步中 (newtech-system)");
+                    } else {
+                        // 如果雲端為空，將預設詞庫灌入 Firebase
+                        seedFirestoreDictionary(dictCollRef);
+                    }
+                }, (err) => {
+                    console.error("Firestore onSnapshot error:", err);
+                    updateCloudStatus(false, "雲端讀取異常 (備用本機模式)");
+                });
+
+            } catch (err) {
+                console.error("Firebase 初始化失敗:", err);
+                updateCloudStatus(false, "本機儲存模式 (離線)");
+            }
+        }
+
+        // 升級雲端狀態燈指示
+        function updateCloudStatus(connected, statusMsg) {
+            isCloudConnected = connected;
+            const dot = document.getElementById('cloud-status-dot');
+            const text = document.getElementById('cloud-status-text');
+            const badge = document.getElementById('dict-sync-status');
+
+            if (connected) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                text.textContent = statusMsg;
+                if (badge) badge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400";
+                text.textContent = statusMsg;
+                if (badge) badge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold flex items-center gap-1";
+            }
+        }
+
+        // 初始化雲端預設詞庫資料
+        async function seedFirestoreDictionary(collRef) {
+            const { doc, setDoc } = window.FirebaseSDK;
+            try {
+                for (const item of INITIAL_DEFAULT_DICTIONARY) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dictionary', item.id), item);
+                }
+                showToast("已成功載入預設詞庫至 Firebase 雲端！");
+            } catch (e) {
+                console.error("Seed Firestore 失敗:", e);
+            }
+        }
+
+        // 本機備份儲存 (LocalStorage Backup)
+        function loadDictionaryFromLocalStorage() {
+            const saved = localStorage.getItem('ntl_dictionary_backup');
+            if (saved) {
+                try {
+                    dictionary = JSON.parse(saved);
+                } catch (e) {
+                    console.error('LocalStorage 讀取失敗', e);
+                }
+            }
+        }
+
+        function saveDictionaryToLocalStorage() {
+            localStorage.setItem('ntl_dictionary_backup', JSON.stringify(dictionary));
+        }
+
+        // 詞庫 CRUD 操作 (自動同步雲端)
+        async function saveDictModalItem() {
+            const kw = document.getElementById('modal-kw').value.trim();
+            const zh = document.getElementById('modal-zh').value.trim();
+            const cat = document.getElementById('modal-cat').value;
+            const model = document.getElementById('modal-model').value.trim() || "-";
+
+            if (!kw || !zh) {
+                showToast("請填寫英文關鍵字與中文名稱！", true);
+                return;
+            }
+
+            const itemData = {
+                keyword: kw,
+                zh: zh,
+                category: cat,
+                model: model
+            };
+
+            const itemId = editingDictId ? editingDictId : `d_${Date.now()}`;
+
+            if (isCloudConnected && db) {
+                const { doc, setDoc } = window.FirebaseSDK;
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dictionary', itemId), { id: itemId, ...itemData });
+                    showToast("已成功更新並同步至 Firebase 雲端！");
+                } catch (e) {
+                    console.error("寫入 Firestore 失敗:", e);
+                    showToast("寫入雲端失敗，已存至本機", true);
+                }
+            } else {
+                const existingIdx = dictionary.findIndex(d => d.id === itemId);
+                if (existingIdx >= 0) {
+                    dictionary[existingIdx] = { id: itemId, ...itemData };
+                } else {
+                    dictionary.push({ id: itemId, ...itemData });
+                }
+                saveDictionaryToLocalStorage();
+                renderDictTable();
+                updateDictCount();
+                showToast("已儲存至本機！");
+            }
+
+            closeDictModal();
+        }
+
+        async function deleteDictItem(id) {
+            if (isCloudConnected && db) {
+                const { doc, deleteDoc } = window.FirebaseSDK;
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dictionary', id));
+                    showToast("已從 Firebase 雲端刪除！");
+                } catch (e) {
+                    console.error("刪除 Firestore 項目失敗:", e);
+                }
+            } else {
+                dictionary = dictionary.filter(d => d.id !== id);
+                saveDictionaryToLocalStorage();
+                renderDictTable();
+                updateDictCount();
+                showToast("已從本機刪除！");
+            }
+        }
+
+        function openAddDictModal() {
+            editingDictId = null;
+            document.getElementById('dict-modal-title').textContent = "新增詞庫對照項目";
+            document.getElementById('modal-kw').value = "";
+            document.getElementById('modal-zh').value = "";
+            document.getElementById('modal-cat').value = "車身裝嵌";
+            document.getElementById('modal-model').value = "-";
+            document.getElementById('dict-modal').classList.remove('hidden');
+        }
+
+        function openEditDictModal(id) {
+            const item = dictionary.find(d => d.id === id);
+            if (!item) return;
+
+            editingDictId = id;
+            document.getElementById('dict-modal-title').textContent = "編輯詞庫對照項目";
+            document.getElementById('modal-kw').value = item.keyword;
+            document.getElementById('modal-zh').value = item.zh;
+            document.getElementById('modal-cat').value = item.category;
+            document.getElementById('modal-model').value = item.model;
+            document.getElementById('dict-modal').classList.remove('hidden');
+        }
+
+        function closeDictModal() {
+            document.getElementById('dict-modal').classList.add('hidden');
+        }
+
+        function exportDictionaryJson() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dictionary, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `NTL_Dictionary_Backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importDictionaryJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        if (isCloudConnected && db) {
+                            const { doc, setDoc } = window.FirebaseSDK;
+                            for (const item of imported) {
+                                const id = item.id || `d_${Date.now()}_${Math.random().toString(36).substr(2,4)}`;
+                                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dictionary', id), { ...item, id });
+                            }
+                            showToast("全數匯入並同步至 Firebase 雲端！");
+                        } else {
+                            dictionary = imported;
+                            saveDictionaryToLocalStorage();
+                            renderDictTable();
+                            updateDictCount();
+                            showToast("已成功匯入詞庫至本機！");
+                        }
+                    }
+                } catch (err) {
+                    showToast("匯入失敗，JSON 格式不正確！", true);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function resetDefaultDictionaryPrompt() {
+            if (isCloudConnected && db) {
+                const { doc, setDoc } = window.FirebaseSDK;
+                for (const item of INITIAL_DEFAULT_DICTIONARY) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'dictionary', item.id), item);
+                }
+                showToast("已將 Firebase 雲端詞庫重設為預設！");
+            } else {
+                dictionary = [...INITIAL_DEFAULT_DICTIONARY];
+                saveDictionaryToLocalStorage();
+                renderDictTable();
+                updateDictCount();
+                showToast("已將本機詞庫重設為預設！");
+            }
+        }
+
         function setTodayDate() {
             const dateInput = document.getElementById('meta-date');
             const today = new Date();
@@ -452,11 +843,9 @@
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
             dateInput.value = `${yyyy}-${mm}-${dd}`;
-            
             calculateDeliveryDate();
         }
 
-        // 自動推算預計交付日期 (下單日期 + 8 個月)
         function calculateDeliveryDate() {
             const dateVal = document.getElementById('meta-date').value;
             if (!dateVal) return;
@@ -470,7 +859,6 @@
             document.getElementById('meta-delivery').value = `${delY} / ${delM}`;
         }
 
-        // 切換頁面 Tab
         function switchStep(step) {
             document.getElementById('step1-page').classList.add('hidden');
             document.getElementById('step2-page').classList.add('hidden');
@@ -494,7 +882,6 @@
             }
         }
 
-        // 關鍵字比對引擎
         function matchDictionary(enText) {
             const cleanEn = enText.toLowerCase();
             for (let item of dictionary) {
@@ -505,7 +892,6 @@
             return { zh: enText, category: "車身裝嵌", model: "-" };
         }
 
-        // 提取數量
         function extractQty(enText) {
             const match = enText.match(/(\d+)\s*(units?|sets?|pairs?|pcs)?/i);
             if (match) {
@@ -520,7 +906,6 @@
             return "1套";
         }
 
-        // 渲染步驟 1 的表格
         function renderMappingRows() {
             const tbody = document.getElementById('mapping-tbody');
             tbody.innerHTML = '';
@@ -569,7 +954,6 @@
             });
         }
 
-        // 修改更新函數
         function updateItemEn(idx, val) { currentParsedItems[idx].en = val; }
         function updateItemZh(idx, val) {
             currentParsedItems[idx].zh = val;
@@ -603,7 +987,6 @@
             renderMappingRows();
         }
 
-        // 上傳與處理檔案 (精準拆行解析器)
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -643,7 +1026,6 @@
             }
         }
 
-        // 解析報價單行內容 (萃取單號與清單)
         function parseQuotationLines(lines) {
             let extractedItems = [];
             
@@ -708,12 +1090,10 @@
             renderMappingRows();
         }
 
-        // 轉至步驟 2 並渲染預覽
         function goToPreview() {
             switchStep(2);
         }
 
-        // 渲染步驟 2 預覽畫布
         function renderPreview() {
             document.getElementById('pv-mod-no').textContent = document.getElementById('meta-mod-no').value;
             document.getElementById('pv-date').textContent = document.getElementById('meta-date').value;
@@ -759,7 +1139,6 @@
             });
         }
 
-        // ================= 詞庫管理邏輯 =================
         function updateDictCount() {
             document.getElementById('dict-count').textContent = dictionary.length;
         }
@@ -771,35 +1150,18 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50";
                 tr.innerHTML = `
-                    <td class="py-2.5 px-4 font-mono text-xs text-blue-600">${item.keyword}</td>
-                    <td class="py-2.5 px-4">${item.zh}</td>
-                    <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100">${item.category}</span></td>
-                    <td class="py-2.5 px-4 text-xs font-mono">${item.model}</td>
-                    <td class="py-2.5 px-4 text-center">
-                        <button onclick="deleteDictItem(${idx})" class="text-red-500 hover:text-red-700 text-xs"><i class="fa-solid fa-trash"></i> 刪除</button>
+                    <td class="py-2.5 px-4 text-center text-xs font-mono text-slate-400">${idx + 1}</td>
+                    <td class="py-2.5 px-4 font-mono text-xs text-blue-600 font-semibold">${item.keyword}</td>
+                    <td class="py-2.5 px-4 text-slate-800 font-medium">${item.zh}</td>
+                    <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">${item.category}</span></td>
+                    <td class="py-2.5 px-4 text-xs font-mono text-slate-600">${item.model}</td>
+                    <td class="py-2.5 px-4 text-center space-x-2">
+                        <button onclick="openEditDictModal('${item.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-semibold"><i class="fa-solid fa-pen-to-square"></i> 編輯</button>
+                        <button onclick="deleteDictItem('${item.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold"><i class="fa-solid fa-trash"></i> 刪除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
-        }
-
-        function addDictItem() {
-            const kw = prompt("請輸入英文關鍵字 (例如: electric fan):");
-            if (!kw) return;
-            const zh = prompt("請輸入對應標準中文名稱:");
-            if (!zh) return;
-            const cat = prompt("請輸入類別 (車身裝嵌 / 電器 / 其他):", "車身裝嵌");
-            const model = prompt("請輸入預設型號 / 編號 (無則填 -):", "-");
-
-            dictionary.push({ id: Date.now(), keyword: kw, zh: zh, category: cat || "車身裝嵌", model: model || "-" });
-            updateDictCount();
-            renderDictTable();
-        }
-
-        function deleteDictItem(idx) {
-            dictionary.splice(idx, 1);
-            updateDictCount();
-            renderDictTable();
         }
     </script>
 </body>
