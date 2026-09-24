@@ -438,12 +438,12 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
                             <tr>
-                                <th class="py-3 px-4 w-10 text-center">#</th>
-                                <th class="py-3 px-4 w-4/12">英文關鍵字 (EN Keyword)</th>
-                                <th class="py-3 px-4 w-4/12">對應標準中文名稱 (Chinese Item)</th>
-                                <th class="py-3 px-4 w-2/12">預設類別</th>
-                                <th class="py-3 px-4 w-2/12">預設型號</th>
-                                <th class="py-3 px-4 text-center w-24">操作</th>
+                                <th class="py-3 px-4 w-10 text-center whitespace-nowrap">#</th>
+                                <th class="py-3 px-4 w-4/12 whitespace-nowrap">英文關鍵字 (EN Keyword)</th>
+                                <th class="py-3 px-4 w-4/12 whitespace-nowrap">對應標準中文名稱 (Chinese Item)</th>
+                                <th class="py-3 px-4 w-2/12 whitespace-nowrap">預設類別</th>
+                                <th class="py-3 px-4 w-2/12 whitespace-nowrap">預設型號</th>
+                                <th class="py-3 px-4 text-center w-36 whitespace-nowrap">操作</th>
                             </tr>
                         </thead>
                         <tbody id="dict-tbody" class="divide-y divide-slate-200">
@@ -1150,14 +1150,14 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50";
                 tr.innerHTML = `
-                    <td class="py-2.5 px-4 text-center text-xs font-mono text-slate-400">${idx + 1}</td>
+                    <td class="py-2.5 px-4 text-center text-xs font-mono text-slate-400 whitespace-nowrap">${idx + 1}</td>
                     <td class="py-2.5 px-4 font-mono text-xs text-blue-600 font-semibold">${item.keyword}</td>
                     <td class="py-2.5 px-4 text-slate-800 font-medium">${item.zh}</td>
-                    <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">${item.category}</span></td>
-                    <td class="py-2.5 px-4 text-xs font-mono text-slate-600">${item.model}</td>
-                    <td class="py-2.5 px-4 text-center space-x-2">
-                        <button onclick="openEditDictModal('${item.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-semibold"><i class="fa-solid fa-pen-to-square"></i> 編輯</button>
-                        <button onclick="deleteDictItem('${item.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold"><i class="fa-solid fa-trash"></i> 刪除</button>
+                    <td class="py-2.5 px-4 whitespace-nowrap"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">${item.category}</span></td>
+                    <td class="py-2.5 px-4 text-xs font-mono text-slate-600 whitespace-nowrap">${item.model}</td>
+                    <td class="py-2.5 px-4 text-center whitespace-nowrap space-x-3">
+                        <button onclick="openEditDictModal('${item.id}')" class="text-blue-600 hover:text-blue-800 text-xs font-semibold inline-flex items-center gap-1"><i class="fa-solid fa-pen-to-square"></i> 編輯</button>
+                        <button onclick="deleteDictItem('${item.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-semibold inline-flex items-center gap-1"><i class="fa-solid fa-trash"></i> 刪除</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
