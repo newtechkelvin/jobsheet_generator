@@ -149,27 +149,27 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">改裝單號 (Mod Order No.)</label>
-                        <input type="text" id="meta-mod-no" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-mod-no" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">合同 / 訂單編號 (Contract No.)</label>
-                        <input type="text" id="meta-contract-no" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-contract-no" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">顧客名稱 (Customer)</label>
-                        <input type="text" id="meta-customer" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-customer" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">項目名稱 (Project Name)</label>
-                        <input type="text" id="meta-project" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-project" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">車型 / 品牌 (Model / Brand)</label>
-                        <input type="text" id="meta-model" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-model" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">車架號 (VIN)</label>
-                        <input type="text" id="meta-vin" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-vin" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">下單日期 (Order Date)</label>
@@ -528,7 +528,7 @@
             { id: "d17", keyword: "logo and lettering", zh: "噴塗車身顏色、機構標識及字樣", category: "其他", model: "-" },
             { id: "d18", keyword: "infrared device", zh: "安裝倒車紅外線防撞感應器", category: "電器", model: "IR_SENS_01" },
             { id: "d19", keyword: "electric fan", zh: "安裝駕駛室風扇", category: "電器", model: "FAN_12V" },
-            { id: "20", keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_SET" },
+            { id: "d20", keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_SET" },
             { id: "d21", keyword: "TA Approval", zh: "安排車輛類型評核 (TA Approval) 審批手續及驗車", category: "其他", model: "TA_APP" },
             { id: "d22", keyword: "PVC cover", zh: "提供所有乘客座位透明 PVC 保護套", category: "其他", model: "-" }
         ];
@@ -1017,13 +1017,58 @@
             if (!file) return;
 
             if (file.name.endsWith('.pdf')) {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                let fullLines = [];
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    let rawLines = [];
 
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        
+                        let items = textContent.items;
+                        // 按垂直 Y 座標從上至下，同行按 X 座標排序
+                        items.sort((a, b) => {
+                            if (Math.abs(a.transform[5] - b.transform[5]) > 4) {
+                                return b.transform[5] - a.transform[5];
+                            }
+                            return a.transform[4] - b.transform[4];
+                        });
+
+                        let currentY = null;
+                        let currentLine = "";
+
+                        for (let item of items) {
+                            if (currentY === null || Math.abs(item.transform[5] - currentY) > 4) {
+                                if (currentLine.trim()) rawLines.push(currentLine.trim());
+                                currentY = item.transform[5];
+                                currentLine = item.str;
+                            } else {
+                                currentLine += " " + item.str;
+                            }
+                        }
+                        if (currentLine.trim()) rawLines.push(currentLine.trim());
+                    }
+                    parseQuotationLines(rawLines);
+                } catch (err) {
+                    console.error("PDF 解析錯誤:", err);
+                    showToast("PDF 解析失敗，請確認檔案格式！", true);
+                }
+            } else if (file.name.endsWith('.txt')) {
+                const text = await file.text();
+                const lines = text.split('\n');
+                parseQuotationLines(lines);
+            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                let lines = json.map(row => Array.isArray(row) ? row.join(' ') : String(row));
+                parseQuotationLines(lines);
+            }
+        }
+
         // 跨行 PDF 解析器 (自動拼合多行項目描述)
         function parseQuotationLines(lines) {
             let extractedItems = [];
@@ -1045,16 +1090,16 @@
                 }
                 
                 if (line.includes("To :") || line.includes("To:")) {
-                    let cust = line.replace(/To\s*:/i, "").trim();
+                    let cust = line.replace(/To\s*:/i, "").split("Attn")[0].split("Our ref")[0].trim();
                     document.getElementById('meta-customer').value = cust;
-                } else if (line.includes("Crown Motors Limited") || line.includes("Sime Darby")) {
-                    let custName = line.split(/Our ref/i)[0].trim();
+                } else if ((line.includes("Crown Motors") || line.includes("Sime Darby")) && !document.getElementById('meta-customer').value) {
+                    let custName = line.split(/Our ref/i)[0].split(/Attn/i)[0].trim();
                     document.getElementById('meta-customer').value = custName;
                 }
 
                 if (line.includes("Re:") || line.includes("Re :")) {
-                    if (line.includes("for ")) {
-                        let proj = line.split(/for /i)[1].trim();
+                    if (/for\s+/i.test(line)) {
+                        let proj = line.split(/for\s+/i)[1].trim();
                         document.getElementById('meta-project').value = proj;
                     } else {
                         document.getElementById('meta-project').value = line.replace(/Re\s*:/i, "").trim();
@@ -1062,7 +1107,7 @@
                 }
 
                 if (line.includes("Modifications of") || line.includes("Quotation of")) {
-                    const modelMatch = line.match(/(GDB[0-9R\/]+|BE[0-9G]+|Sprinter|Coaster)/i);
+                    const modelMatch = line.match(/(GDB[0-9R\/]+|BE[0-9G]+|Sprinter|Coaster|Mit\.\s*Fuso)/i);
                     if (modelMatch) {
                         document.getElementById('meta-model').value = modelMatch[0];
                     }
@@ -1078,7 +1123,8 @@
                     line.startsWith("Remarks:") || line.includes("Total Amount:") ||
                     line.includes("Yours sincerely") || line.includes("Confirmed & Accepted") ||
                     line.includes("Authorized Chop") || line.includes("Unit Price") ||
-                    line.startsWith("Description")) {
+                    line.startsWith("Description") || line.startsWith("Quotation") ||
+                    line.startsWith("Dear Ms") || line.startsWith("Dear Mr")) {
                     continue;
                 }
 
@@ -1088,12 +1134,19 @@
                     if (currentItem.trim()) {
                         extractedItems.push(currentItem.trim());
                     }
-                    currentItem = numMatch[2]; // 開始記錄新項目
-                } else if (!numMatch && /^Supply\s+/i.test(line) && !currentItem) {
+                    currentItem = numMatch[2] ? numMatch[2] : ""; // 開始記錄新項目
+                } else if (/^\d+$/.test(line)) {
+                    if (currentItem.trim()) {
+                        extractedItems.push(currentItem.trim());
+                    }
+                    currentItem = "";
+                } else if (/^Supply\s+/i.test(line) && !currentItem) {
                     currentItem = line;
-                } else if (currentItem) {
+                } else if (currentItem !== null && currentItem !== undefined) {
                     // 如果是換行繼續的項目內容，合併至當前項目中
-                    currentItem += " " + line;
+                    if (!line.includes("Our ref") && !line.includes("To:") && !line.includes("Re:") && !line.includes("HK$")) {
+                        currentItem += (currentItem ? " " : "") + line;
+                    }
                 }
             }
 
