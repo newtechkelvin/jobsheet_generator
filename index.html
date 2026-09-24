@@ -918,16 +918,43 @@
         }
 
         function extractQty(enText) {
-            const match = enText.match(/(\d+)\s*(units?|sets?|pairs?|pcs)?/i);
-            if (match) {
-                const num = match[1];
-                if (enText.includes("units of PVC high back passenger seats") || enText.includes("units of high back PVC passenger seats")) {
-                    return `${num}個`;
+            const lower = enText.toLowerCase();
+
+            // 1. 座位數量規則 (避免與日期或重量混淆)
+            const seatMatch = lower.match(/(\d+)\s*units?\s*of.*(?:passenger\s*seats|pvc\s*high\s*back)/i) || lower.match(/(\d+)\s*units?\s*of.*seats?/i);
+            if (seatMatch) return `${seatMatch[1]}個`;
+
+            // 2. 輪椅升降台規則
+            if (lower.includes("wheelchair lift")) {
+                const liftMatch = lower.match(/(\d+|one)\s*units?.*wheelchair\s*lift/i) || lower.match(/wheelchair\s*lift.*(\d+)\s*units?/i);
+                if (liftMatch) {
+                    const num = liftMatch[1] === 'one' ? '1' : liftMatch[1];
+                    return `${num}台`;
                 }
-                if (enText.includes("wheelchair lift")) return `${num}台`;
-                if (enText.includes("pair")) return `${num}對`;
-                return `${num}套`;
+                return "1台";
             }
+
+            // 3. 4點式固定帶
+            if (lower.includes("webbing") || lower.includes("securement")) {
+                const webMatch = lower.match(/(\d+)\s*units?/i) || lower.match(/(\d+)\s*sets?/i);
+                if (webMatch) return `${webMatch[1]}套`;
+            }
+
+            // 4. 對 (Pair)
+            if (lower.includes("a pair") || lower.includes("1 pair")) return "1對";
+            const pairMatch = lower.match(/(\d+)\s*pairs?/i);
+            if (pairMatch) return `${pairMatch[1]}對`;
+
+            // 5. 通用數量抓取 (過濾大於100的非數量干擾字如 350kg / 2026年)
+            const generalMatch = lower.match(/(\d+)\s*(units?|sets?|pcs)/i);
+            if (generalMatch) {
+                const num = parseInt(generalMatch[1]);
+                if (num < 100) {
+                    if (lower.includes("seat")) return `${num}個`;
+                    return `${num}套`;
+                }
+            }
+
             return "1套";
         }
 
@@ -1021,6 +1048,7 @@
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                     let rawLines = [];
+                    let fullDocText = "";
 
                     for (let i = 1; i <= pdf.numPages; i++) {
                         const page = await pdf.getPage(i);
@@ -1040,16 +1068,22 @@
 
                         for (let item of items) {
                             if (currentY === null || Math.abs(item.transform[5] - currentY) > 4) {
-                                if (currentLine.trim()) rawLines.push(currentLine.trim());
+                                if (currentLine.trim()) {
+                                    rawLines.push(currentLine.trim());
+                                    fullDocText += " " + currentLine.trim();
+                                }
                                 currentY = item.transform[5];
                                 currentLine = item.str;
                             } else {
                                 currentLine += " " + item.str;
                             }
                         }
-                        if (currentLine.trim()) rawLines.push(currentLine.trim());
+                        if (currentLine.trim()) {
+                            rawLines.push(currentLine.trim());
+                            fullDocText += " " + currentLine.trim();
+                        }
                     }
-                    parseQuotationLines(rawLines);
+                    parseQuotationLines(rawLines, fullDocText);
                 } catch (err) {
                     console.error("PDF 解析錯誤:", err);
                     showToast("PDF 解析失敗，請確認檔案格式！", true);
@@ -1057,7 +1091,7 @@
             } else if (file.name.endsWith('.txt')) {
                 const text = await file.text();
                 const lines = text.split('\n');
-                parseQuotationLines(lines);
+                parseQuotationLines(lines, text);
             } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
@@ -1065,95 +1099,97 @@
                 const worksheet = workbook.Sheets[firstSheetName];
                 const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                 let lines = json.map(row => Array.isArray(row) ? row.join(' ') : String(row));
-                parseQuotationLines(lines);
+                parseQuotationLines(lines, lines.join(' '));
             }
         }
 
-        // 跨行 PDF 解析器 (自動拼合多行項目描述)
-        function parseQuotationLines(lines) {
+        function parseQuotationLines(lines, fullText) {
             let extractedItems = [];
-            let currentItem = "";
+            const textToParse = fullText || lines.join(" ");
 
-            for (let i = 0; i < lines.length; i++) {
-                let line = lines[i].trim();
-                if (!line) continue;
+            // 1. 表頭元數據抓取
+            const refMatch = textToParse.match(/Our ref\s*:\s*([A-Z0-9-]+)/i) || textToParse.match(/(NTL-Q-[0-9-]+)/i);
+            if (refMatch) {
+                const qNo = refMatch[1];
+                document.getElementById('meta-contract-no').value = qNo;
+                const modNum = qNo.replace(/NTL-Q-/i, "").replace(/-202\d/g, "");
+                document.getElementById('meta-mod-no').value = `NTL-MOD-26-${modNum.padStart(3, '0')}`;
+            }
 
-                // 表頭元數據抓取
-                if (line.includes("Our ref") || line.includes("Our Ref")) {
-                    const refMatch = line.match(/NTL-Q-[0-9-]+/i);
-                    if (refMatch) {
-                        const qNo = refMatch[0];
-                        document.getElementById('meta-contract-no').value = qNo;
-                        const modNum = qNo.replace(/NTL-Q-/i, "").replace(/-202\d/g, "");
-                        document.getElementById('meta-mod-no').value = `NTL-MOD-26-${modNum.padStart(3, '0')}`;
-                    }
-                }
-                
-                if (line.includes("To :") || line.includes("To:")) {
-                    let cust = line.replace(/To\s*:/i, "").split("Attn")[0].split("Our ref")[0].trim();
-                    document.getElementById('meta-customer').value = cust;
-                } else if ((line.includes("Crown Motors") || line.includes("Sime Darby")) && !document.getElementById('meta-customer').value) {
-                    let custName = line.split(/Our ref/i)[0].split(/Attn/i)[0].trim();
-                    document.getElementById('meta-customer').value = custName;
-                }
+            if (textToParse.includes("Crown Motors Limited")) {
+                document.getElementById('meta-customer').value = "Crown Motors Limited";
+            } else if (textToParse.includes("Sime Darby")) {
+                document.getElementById('meta-customer').value = "Sime Darby Motor Service Limited";
+            } else if (textToParse.includes("Universal Cars")) {
+                document.getElementById('meta-customer').value = "Universal Cars Limited";
+            } else {
+                const toMatch = textToParse.match(/To\s*:\s*([^\n\r]+?)(?=\s*Attn|\s*Tel|\s*Our ref|$)/i);
+                if (toMatch) document.getElementById('meta-customer').value = toMatch[1].trim();
+            }
 
-                if (line.includes("Re:") || line.includes("Re :")) {
-                    if (/for\s+/i.test(line)) {
-                        let proj = line.split(/for\s+/i)[1].trim();
-                        document.getElementById('meta-project').value = proj;
-                    } else {
-                        document.getElementById('meta-project').value = line.replace(/Re\s*:/i, "").trim();
-                    }
-                }
+            const reMatch = textToParse.match(/Re\s*:\s*Quotation of[^\n\r]*?for\s+([^\n\r]+?)(?=\s*No\.|\s*Description|\s*1\.|\s*Modifications|$)/i) 
+                         || textToParse.match(/Re\s*:\s*([^\n\r]+?)(?=\s*No\.|\s*Description|\s*1\.|\s*Modifications|$)/i);
+            if (reMatch) {
+                let proj = reMatch[1].trim().replace(/\s*Description\s*$/i, "").trim();
+                document.getElementById('meta-project').value = proj;
+            }
 
-                if (line.includes("Modifications of") || line.includes("Quotation of")) {
-                    const modelMatch = line.match(/(GDB[0-9R\/]+|BE[0-9G]+|Sprinter|Coaster|Mit\.\s*Fuso)/i);
-                    if (modelMatch) {
-                        document.getElementById('meta-model').value = modelMatch[0];
-                    }
-                }
+            const modelMatch = textToParse.match(/(GDB[0-9R\/]+|BE[0-9G]+|Sprinter|Coaster|BE741G)/i);
+            if (modelMatch) {
+                document.getElementById('meta-model').value = modelMatch[0];
+            }
 
-                if (line.toLowerCase().includes("vincy")) {
-                    document.getElementById('meta-preparer').value = "Vincy";
-                }
+            if (textToParse.toLowerCase().includes("vincy")) {
+                document.getElementById('meta-preparer').value = "Vincy";
+            }
 
-                // 過濾頁眉頁腳與頁面備註雜訊
-                if (line.includes("Infotech Centre") || line.includes("Hung To Road") || 
-                    line.includes("Tel:") || line.includes("Fax:") || line.includes("E-mail:") ||
-                    line.startsWith("Remarks:") || line.includes("Total Amount:") ||
-                    line.includes("Yours sincerely") || line.includes("Confirmed & Accepted") ||
-                    line.includes("Authorized Chop") || line.includes("Unit Price") ||
-                    line.startsWith("Description") || line.startsWith("Quotation") ||
-                    line.startsWith("Dear Ms") || line.startsWith("Dear Mr")) {
-                    continue;
-                }
+            // 2. 改裝項目精準提取引擎 (優先採編號模式 1., 2., ... 20. 匹配)
+            const numberedRegex = /(?:^|\s)(\d{1,2})\.\s+([\s\S]+?)(?=(?:\s+\d{1,2}\.\s+)|Remarks:|Total Amount:|Yours sincerely|Confirmed|Authorized Chop|Room A|Room C|$)/gi;
+            let match;
+            let numberedItems = [];
 
-                // 判斷是否為項目開頭 (如 "1. Supply...", "2. Supply...")
-                const numMatch = line.match(/^(\d+)\.\s*(.*)/);
-                if (numMatch) {
-                    if (currentItem.trim()) {
-                        extractedItems.push(currentItem.trim());
-                    }
-                    currentItem = numMatch[2] ? numMatch[2] : ""; // 開始記錄新項目
-                } else if (/^\d+$/.test(line)) {
-                    if (currentItem.trim()) {
-                        extractedItems.push(currentItem.trim());
-                    }
-                    currentItem = "";
-                } else if (/^Supply\s+/i.test(line) && !currentItem) {
-                    currentItem = line;
-                } else if (currentItem !== null && currentItem !== undefined) {
-                    // 如果是換行繼續的項目內容，合併至當前項目中
-                    if (!line.includes("Our ref") && !line.includes("To:") && !line.includes("Re:") && !line.includes("HK$")) {
-                        currentItem += (currentItem ? " " : "") + line;
-                    }
+            while ((match = numberedRegex.exec(textToParse)) !== null) {
+                let num = parseInt(match[1]);
+                let itemText = match[2].replace(/\s+/g, " ").trim();
+                if (itemText && num > 0 && num < 50) {
+                    numberedItems.push({ num, text: itemText });
                 }
             }
 
-            if (currentItem.trim()) {
-                extractedItems.push(currentItem.trim());
+            if (numberedItems.length >= 2) {
+                numberedItems.sort((a, b) => a.num - b.num);
+                extractedItems = numberedItems.map(i => i.text);
+            } else {
+                // 備用無編號模式 (逐行 Supply 合併)
+                let currentItem = "";
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line) continue;
+
+                    if (line.includes("Infotech Centre") || line.includes("Hung To Road") || 
+                        line.includes("Tel:") || line.includes("Fax:") || line.includes("E-mail:") ||
+                        line.startsWith("Remarks:") || line.includes("Total Amount:") ||
+                        line.includes("Yours sincerely") || line.includes("Confirmed") ||
+                        line.includes("Authorized Chop") || line.includes("Unit Price") ||
+                        line.startsWith("Description") || line.startsWith("Quotation") ||
+                        line.startsWith("Dear Ms") || line.startsWith("Dear Mr") ||
+                        line.includes("Our ref") || line.includes("To:") || line.includes("Re:")) {
+                        continue;
+                    }
+
+                    if (/^Supply\s+/i.test(line) || /^\d+\.\s+Supply/i.test(line)) {
+                        if (currentItem.trim()) extractedItems.push(currentItem.trim());
+                        currentItem = line.replace(/^\d+\.\s*/, "");
+                    } else if (currentItem) {
+                        if (!line.includes("HK$") && !line.includes("Page ")) {
+                            currentItem += " " + line;
+                        }
+                    }
+                }
+                if (currentItem.trim()) extractedItems.push(currentItem.trim());
             }
 
+            // 3. 配對詞庫與生成列表
             currentParsedItems = extractedItems.map(enText => {
                 const matched = matchDictionary(enText);
                 return {
