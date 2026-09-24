@@ -1,833 +1,1185 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>車輛改裝通知單 (Job Sheet)製作系統 - 新力機械有限公司</title>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- SheetJS (xlsx) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- html2pdf.js for Client-side PDF Generation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  </script>
-
-  <style>
-    @media print {
-      body { background: white !important; font-size: 11pt; }
-      .no-print { display: none !important; }
-      .print-only { display: block !important; }
-      .page-break { page-break-after: always; }
-      .preview-container { border: none !important; box-shadow: none !important; padding: 0 !important; width: 100% !important; }
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車輛改裝通知單 (Job Sheet) - 智能對照與自動填報系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF.js CDN for PDF Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- SheetJS (XLSX) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    /* 預覽與列印專用表格樣式 */
-    .sheet-table { width: 100%; border-collapse: collapse; margin-bottom: -1px; }
-    .sheet-table th, .sheet-table td { border: 1px solid #000; padding: 4px 6px; font-size: 12px; }
-    
-    /* 頂部單行表格極簡壓縮樣式 */
-    .compact-header-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .compact-header-table td { 
-      border: 1px solid #000; 
-      padding: 3px 4px; 
-      font-size: 11px; 
-      white-space: nowrap; 
-      overflow: hidden; 
-      text-overflow: ellipsis; 
-      vertical-align: middle;
-    }
-    .compact-header-table .bg-blue-hdr { background-color: #e0effe; font-weight: bold; text-align: center; }
-
-    .sheet-header-bg { background-color: #1a2536; color: white; font-weight: bold; }
-    .sheet-sub-bg { background-color: #f1f5f9; font-weight: bold; }
-  </style>
-</head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
-
-  <!-- 頂部導航列 -->
-  <header class="bg-slate-900 text-white shadow-md no-print">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-      <div class="flex items-center space-x-3">
-        <div class="bg-blue-600 p-2 rounded-lg"><i class="fa-solid fa-truck-gear text-xl"></i></div>
-        <div>
-          <h1 class="font-bold text-lg leading-tight">車輛改裝通知單 (Job Sheet)製作系統</h1>
-          <p class="text-xs text-slate-400">新力機械有限公司 (New Tech Motor Engineering Ltd.)</p>
-        </div>
-      </div>
-      <div class="flex space-x-2">
-        <button onclick="switchTab('parse')" id="tab-btn-parse" class="px-4 py-2 rounded-lg text-sm font-medium transition bg-blue-600 text-white"><i class="fa-solid fa-list-check mr-1.5"></i>1. 報價單解析與下拉對照</button>
-        <button onclick="switchTab('preview')" id="tab-btn-preview" class="px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800"><i class="fa-solid fa-file-invoice mr-1.5"></i>2. 生產通知單預覽與匯出</button>
-        <button onclick="switchTab('dict')" id="tab-btn-dict" class="px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800"><i class="fa-solid fa-book mr-1.5"></i>3. 英文詞庫資料庫 (<span id="dict-count-badge">0</span>)</button>
-      </div>
-    </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 py-6">
-
-    <!-- TAB 1: 報價單解析與對照 -->
-    <section id="tab-parse" class="space-y-6">
-      
-      <!-- 步驟 1: 上傳與頭部欄位填寫 -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h2 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-file-arrow-up text-blue-600 mr-2"></i>步驟 1：載入或貼上英文報價單文字</h2>
-            <p class="text-xs text-slate-500 mt-0.5">系統會以設定好的詞庫進行自動比對，並為每個項目匹配預設中文，您可隨時透過下拉選單調整。</p>
-          </div>
-          <div>
-            <label class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition shadow flex items-center">
-              <i class="fa-solid fa-upload mr-2"></i> 上傳 PDF / Excel / TXT
-              <input type="file" id="quotation-file-input" accept=".pdf,.xlsx,.xls,.txt" class="hidden" onchange="handleFileUpload(event)">
-            </label>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">改裝單號 (Mod Order No.)</label>
-            <input type="text" id="mod-order-no" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">合同 / 訂單編號 (Contract No.)</label>
-            <input type="text" id="contract-no" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">顧客名稱 (Customer)</label>
-            <input type="text" id="customer-name" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">項目名稱 (Project Name)</label>
-            <input type="text" id="project-name" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">車型 / 品牌 (Model / Brand)</label>
-            <input type="text" id="vehicle-model" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">車架號 (VIN)</label>
-            <input type="text" id="vin-no" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">下單日期 (Order Date)</label>
-            <input type="date" id="order-date" onchange="autoCalculateDeliveryDate()" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">預計交付日期 (Delivery Date)</label>
-            <input type="text" id="delivery-date" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">改裝圖編號 (Drawing No.)</label>
-            <input type="text" id="drawing-no" value="20251210(1)" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">接線圖編號 (Wiring Diagram No.)</label>
-            <input type="text" id="wiring-no" value="C_C_25_2C" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">填表人 (Preparer)</label>
-            <input type="text" id="preparer-name" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">填表單位 (Department)</label>
-            <input type="text" id="dept-name" value="項目部" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-
-          <div class="md:col-span-4">
-            <label class="block text-xs font-semibold text-slate-600 mb-1">表單版本 (Form Code)</label>
-            <input type="text" id="form-code" value="NTL-MOD-002A (Rev. A/0)" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-          </div>
-        </div>
-      </div>
-
-      <!-- 步驟 2: 報價單對照對應區 -->
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-table-cells text-blue-600 mr-2"></i>步驟 2：報價單英文項目與標準中文下拉對照 (<span id="parsed-count">共 0 項</span>)</h2>
-          <div class="flex space-x-2">
-            <button onclick="addNewRow()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium transition"><i class="fa-solid fa-plus mr-1"></i> 手動新增項目</button>
-            <button onclick="reMatchAll()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium transition"><i class="fa-solid fa-rotate mr-1"></i> 重新自動比對</button>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto border border-slate-200 rounded-lg">
-          <table class="min-w-full divide-y divide-slate-200 text-sm">
-            <thead class="bg-slate-50 text-slate-600 font-semibold text-xs">
-              <tr>
-                <th class="py-3 px-3 text-center w-10">#</th>
-                <th class="py-3 px-4 text-left w-2/5">報價單英文原文 (Quotation Description)</th>
-                <th class="py-3 px-4 text-left w-2/5">對應中文項目 (下拉選擇或自訂)</th>
-                <th class="py-3 px-3 text-left w-28">類別</th>
-                <th class="py-3 px-3 text-left w-28">型號 / 編號</th>
-                <th class="py-3 px-3 text-left w-24">數量</th>
-                <th class="py-3 px-3 text-center w-12">操作</th>
-              </tr>
-            </thead>
-            <tbody id="parsed-items-tbody" class="divide-y divide-slate-200 bg-white">
-              <!-- 動態渲染項目 -->
-            </tbody>
-          </table>
-          <div id="empty-parsed-state" class="p-12 text-center text-slate-400">
-            <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
-            <p>暫無資料，請點擊上方「上傳檔案」。</p>
-          </div>
-        </div>
-
-        <div class="mt-6 flex justify-end">
-          <button onclick="switchTab('preview')" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition shadow flex items-center">
-            前往通知單預覽與匯出 <i class="fa-solid fa-arrow-right ml-2"></i>
-          </button>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- TAB 2: 生產通知單預覽與匯出 -->
-    <section id="tab-preview" class="hidden space-y-6">
-      
-      <!-- 工具列 -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4 no-print">
-        <div class="flex items-center space-x-4">
-          <span class="text-sm font-bold text-slate-700"><i class="fa-solid fa-eye text-blue-600 mr-1.5"></i> 頁面選項：</span>
-          <label class="inline-flex items-center text-sm text-slate-600 cursor-pointer">
-            <input type="checkbox" id="toggle-quality-sec" checked onchange="updatePreviewVisibility()" class="rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-            <span class="ml-2">顯示「質量與法規合規要求」</span>
-          </label>
-          <label class="inline-flex items-center text-sm text-slate-600 cursor-pointer">
-            <input type="checkbox" id="toggle-signature-sec" checked onchange="updatePreviewVisibility()" class="rounded border-slate-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
-            <span class="ml-2">顯示「部門簽署」</span>
-          </label>
-        </div>
-
-        <div class="flex space-x-3">
-          <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition shadow flex items-center">
-            <i class="fa-solid fa-print mr-2"></i> 列印 / 另存 PDF
-          </button>
-          <button onclick="downloadAsWord()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition shadow flex items-center">
-            <i class="fa-solid fa-file-word mr-2"></i> 下載 Word (.doc)
-          </button>
-        </div>
-      </div>
-
-      <!-- 生產通知單文件預覽區 -->
-      <div class="bg-white p-8 rounded-xl shadow-lg border border-slate-300 max-w-4xl mx-auto preview-container" id="printable-doc">
-        
-        <!-- 頂部標題區 -->
-        <div class="border-2 border-black text-center py-2 mb-2">
-          <h1 class="text-xl font-bold tracking-wider">車輛改裝通知單 (Job Sheet)</h1>
-        </div>
-
-        <!-- 單行 8 格極簡頭部表格 -->
-        <table class="compact-header-table mb-2">
-          <tr>
-            <td class="bg-blue-hdr" style="width: 8%;">單號</td>
-            <td style="width: 22%; font-weight: bold;" id="p-mod-order-no">-</td>
-            <td class="bg-blue-hdr" style="width: 8%;">日期</td>
-            <td style="width: 17%; text-align: center;" id="p-order-date">-</td>
-            <td class="bg-blue-hdr" style="width: 9%;">填表人</td>
-            <td style="width: 13%; text-align: center;" id="p-preparer-name">-</td>
-            <td class="bg-blue-hdr" style="width: 8%;">版本</td>
-            <td style="width: 15%; text-align: center;" id="p-form-code">-</td>
-          </tr>
-        </table>
-
-        <!-- 一、車輛與客戶資訊 -->
-        <div class="sheet-header-bg px-2 py-1 text-sm mb-1">一、車輛與客戶資訊</div>
-        <table class="sheet-table mb-3">
-          <tr>
-            <td class="sheet-sub-bg" style="width:16%;">合同 / 訂單編號</td>
-            <td style="width:22%;" id="p-contract-no">-</td>
-            <td class="sheet-sub-bg" style="width:14%;">顧客名稱</td>
-            <td style="width:20%;" id="p-customer-name">-</td>
-            <td class="sheet-sub-bg" style="width:12%;">項目名稱</td>
-            <td style="width:16%;" id="p-project-name">-</td>
-          </tr>
-          <tr>
-            <td class="sheet-sub-bg">車型 / 品牌</td>
-            <td id="p-vehicle-model">-</td>
-            <td class="sheet-sub-bg">車架號 (VIN)</td>
-            <td id="p-vin-no">-</td>
-            <td class="sheet-sub-bg">預計交付日期</td>
-            <td id="p-delivery-date">-</td>
-          </tr>
-        </table>
-
-        <!-- 二、改裝項目與物料清單 -->
-        <div class="sheet-header-bg px-2 py-1 text-sm flex justify-between items-center mb-1">
-          <span>二、改裝項目與物料清單</span>
-          <span class="text-xs font-normal">改裝圖編號: <span id="p-drawing-no">-</span> | 接線圖編號: <span id="p-wiring-no">-</span></span>
-        </div>
-        
-        <table class="sheet-table mb-4">
-          <thead>
-            <tr class="sheet-sub-bg text-center">
-              <th style="width:10%;">類別</th>
-              <th style="width:6%;">序號</th>
-              <th style="width:36%;">改裝項目</th>
-              <th style="width:18%;">型號 / 編號</th>
-              <th style="width:8%;">數量</th>
-              <th style="width:10%;">技術審核</th>
-              <th style="width:12%;">完工質量檢驗</th>
-            </tr>
-          </thead>
-          <tbody id="p-items-tbody">
-            <!-- 動態生成項目 -->
-          </tbody>
-        </table>
-
-        <!-- 三、質量與法規合規要求 -->
-        <div id="section-quality">
-          <div class="sheet-header-bg px-2 py-1 text-sm mb-1">三、質量與法規合規要求</div>
-          <table class="sheet-table mb-4">
-            <tr>
-              <td class="sheet-sub-bg" style="width:20%;">品質管理部</td>
-              <td>
-                <span class="inline-block mr-4">☐ 已完全滿足交付品質要求</span>
-                <span>☐ 需安排後續跟進</span>
-              </td>
-            </tr>
-            <tr>
-              <td class="sheet-sub-bg">檢驗及類型評核部</td>
-              <td>
-                <span class="inline-block mr-4">☐ 已符合運輸署法規及驗車標準</span>
-                <span class="inline-block mr-4">☐ 需安排第三方機構測試</span>
-                <span>☐ 規格需進一步修正</span>
-              </td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- 部門簽署 -->
-        <div id="section-signature">
-          <div class="sheet-header-bg px-2 py-1 text-sm mb-1">部門簽署</div>
-          <table class="sheet-table">
-            <tr class="sheet-sub-bg text-center">
-              <td style="width:25%;">項目部</td>
-              <td style="width:25%;">技術及生產部</td>
-              <td style="width:25%;">品質管理部</td>
-              <td style="width:25%;">檢驗及類型評核部</td>
-            </tr>
-            <tr style="height:50px;" class="align-bottom">
-              <td>
-                <div class="text-xs text-slate-400 mb-1">簽署：</div>
-                <div class="text-xs text-slate-400">員工編號：</div>
-              </td>
-              <td>
-                <div class="text-xs text-slate-400 mb-1">簽署：</div>
-                <div class="text-xs text-slate-400">員工編號：</div>
-              </td>
-              <td>
-                <div class="text-xs text-slate-400 mb-1">簽署：</div>
-                <div class="text-xs text-slate-400">員工編號：</div>
-              </td>
-              <td>
-                <div class="text-xs text-slate-400 mb-1">簽署：</div>
-                <div class="text-xs text-slate-400">員工編號：</div>
-              </td>
-            </tr>
-          </table>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- TAB 3: 詞庫資料庫管理 -->
-    <section id="tab-dict" class="hidden space-y-6">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h2 class="text-lg font-bold text-slate-800 flex items-center"><i class="fa-solid fa-book-bookmark text-blue-600 mr-2"></i>英文改裝對照詞庫管理</h2>
-            <p class="text-xs text-slate-500 mt-0.5">系統比對報價單關鍵字時所依據的標準詞庫，可隨時在此手動新增或導出/匯入 Excel。</p>
-          </div>
-          <div class="flex space-x-2">
-            <button onclick="openAddDictModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition"><i class="fa-solid fa-plus mr-1"></i> 新增詞條</button>
-            <button onclick="exportDictExcel()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium transition"><i class="fa-solid fa-download mr-1"></i> 匯出 Excel</button>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto border border-slate-200 rounded-lg">
-          <table class="min-w-full divide-y divide-slate-200 text-sm">
-            <thead class="bg-slate-50 text-slate-600 font-semibold text-xs">
-              <tr>
-                <th class="py-3 px-4 text-left">英文關鍵字 (Quotation Keyword)</th>
-                <th class="py-3 px-4 text-left">對應標準中文名稱</th>
-                <th class="py-3 px-3 text-left">類別</th>
-                <th class="py-3 px-3 text-left">預設型號</th>
-                <th class="py-3 px-3 text-left">預設單位</th>
-                <th class="py-3 px-3 text-center">操作</th>
-              </tr>
-            </thead>
-            <tbody id="dict-table-tbody" class="divide-y divide-slate-200 bg-white">
-              <!-- 動態渲染詞庫 -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <script>
-    // 預設標準對照詞庫
-    let dictionary = [
-      { id: 1, keyword: "high back PVC passenger seats", zh: "安裝高背 PVC 乘客座位（連三點式安全帶及走廊位可摺手枕）", category: "車身裝嵌", model: "Reen seat", unit: "個" },
-      { id: 2, keyword: "under-chassis wheelchair lift", zh: "安裝底盤下自動輪椅升降台", category: "車身裝嵌", model: "WAKO VK131", unit: "台" },
-      { id: 3, keyword: "Innotrax flooring", zh: "安裝鋁合金 Innotrax 地台路軌及防滑地膠", category: "車身裝嵌", model: "Innotrax", unit: "套" },
-      { id: 4, keyword: "reinforced flooring", zh: "安裝加強型防滑地膠地台", category: "車身裝嵌", model: "-", unit: "套" },
-      { id: 5, keyword: "auto step underneath", zh: "安裝側摺門下電動伸縮踏板", category: "車身裝嵌", model: "THULE 700ALU", unit: "套" },
-      { id: 6, keyword: "half step", zh: "安裝中門半腳踏", category: "車身裝嵌", model: "-", unit: "個" },
-      { id: 7, keyword: "modify rear door hinges", zh: "改裝尾門較及加裝尾門扣", category: "車身裝嵌", model: "尾門扣", unit: "套" },
-      { id: 8, keyword: "stainless steel handrails", zh: "安裝中門、尾門及車窗不銹鋼扶手連軟墊", category: "車身裝嵌", model: "-", unit: "套" },
-      { id: 9, keyword: "mudguards", zh: "安裝纖維轆輁 / 擋泥板", category: "車身裝嵌", model: "FW_C_01", unit: "套" },
-      { id: 10, keyword: "brake & indicator", zh: "安裝車尾頂部煞車燈/訊號燈及「升降中/乘降中」燈箱", category: "電器", model: "LB_A_01", unit: "套" },
-      { id: 11, keyword: "warning signal for door", zh: "安裝車門未關緊警告訊號裝置", category: "電器", model: "WARN_01", unit: "套" },
-      { id: 12, keyword: "parking sensors with CCTV", zh: "安裝倒後泊車雷達及 CCTV 倒車鏡頭", category: "電器", model: "CCTV_6inch", unit: "套" },
-      { id: 13, keyword: "infrared device", zh: "安裝車尾紅外線泊車防撞感應裝置", category: "電器", model: "IR_SENS_01", unit: "套" },
-      { id: 14, keyword: "electric fan", zh: "安裝駕駛室風扇", category: "電器", model: "FAN_12V", unit: "個" },
-      { id: 15, keyword: "anti-theft security system", zh: "安裝防盜警報系統", category: "電器", model: "AT_SYS_01", unit: "套" },
-      { id: 16, keyword: "4-point webbing securement", zh: "提供輪椅鎖扣及安全帶 (4點式)", category: "其他", model: "NMI WTORS", unit: "套" },
-      { id: 17, keyword: "reflective", zh: "安裝尾門紅黃反光鋁板 / 反光牌", category: "其他", model: "RP_01A", unit: "套" },
-      { id: 18, keyword: "rustproofing", zh: "提供防銹處理", category: "其他", model: "-", unit: "套" },
-      { id: 19, keyword: "logo and lettering", zh: "噴塗車身顏色、機構標識及字樣", category: "其他", model: "-", unit: "套" },
-      { id: 20, keyword: "TA Approval", zh: "安排車輛類型評核 (TA Approval) 審批手續及驗車", category: "其他", model: "TA_APP", unit: "項" },
-      { id: 21, keyword: "railing and curtains", zh: "安裝兩側車窗路軌連窗簾", category: "車身裝嵌", model: "CURT_01", unit: "套" },
-      { id: 22, keyword: "PVC cover", zh: "提供所有乘客座位透明 PVC 保護套", category: "其他", model: "-", unit: "套" }
-    ];
-
-    let parsedItems = [];
-
-    // 初始化頁面
-    window.onload = function() {
-      // 自動設為今天日期
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('order-date').value = today;
-      autoCalculateDeliveryDate();
-
-      renderDictTable();
-      renderParsedItems();
-    };
-
-    // 自動計算預計交付日期 (下單日期 + 8個月)
-    function autoCalculateDeliveryDate() {
-      const orderDateVal = document.getElementById('order-date').value;
-      if (!orderDateVal) return;
-
-      const d = new Date(orderDateVal);
-      d.setMonth(d.getMonth() + 8);
-
-      const year = d.getFullYear();
-      const month = d.getMonth() + 1;
-      document.getElementById('delivery-date').value = `${year} / ${month}`;
-    }
-
-    // 切換 TAB
-    function switchTab(tab) {
-      document.getElementById('tab-parse').classList.add('hidden');
-      document.getElementById('tab-preview').classList.add('hidden');
-      document.getElementById('tab-dict').classList.add('hidden');
-
-      document.getElementById('tab-btn-parse').className = "px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800";
-      document.getElementById('tab-btn-preview').className = "px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800";
-      document.getElementById('tab-btn-dict').className = "px-4 py-2 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800";
-
-      document.getElementById(`tab-${tab}`).classList.remove('hidden');
-      const activeBtn = document.getElementById(`tab-btn-${tab}`);
-      activeBtn.className = "px-4 py-2 rounded-lg text-sm font-medium transition bg-blue-600 text-white";
-
-      if (tab === 'preview') {
-        updatePreviewDoc();
-      }
-    }
-
-    // 解析報價單 PDF / Excel / 文字檔
-    async function handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      if (file.name.endsWith('.pdf')) {
-        await parsePDF(file);
-      } else {
-        alert("目前主要支援 PDF 格式解析！");
-      }
-    }
-
-    // PDF 專用解析器
-    async function parsePDF(file) {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      
-      let fullTextLines = [];
-
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        let items = textContent.items;
-        if (items.length === 0) continue;
-
-        items.sort((a, b) => b.transform[5] - a.transform[5]);
-
-        let lines = [];
-        let currentY = null;
-        let currentLine = "";
-
-        for (let item of items) {
-          let y = Math.round(item.transform[5]);
-          if (currentY === null || Math.abs(y - currentY) < 6) {
-            currentLine += " " + item.str;
-            currentY = y;
-          } else {
-            if (currentLine.trim()) lines.push(currentLine.trim());
-            currentLine = item.str;
-            currentY = y;
-          }
-        }
-        if (currentLine.trim()) lines.push(currentLine.trim());
-
-        fullTextLines = fullTextLines.concat(lines);
-      }
-
-      parseQuotationLines(fullTextLines);
-    }
-
-    // 解析提取出來的文字行
-    function parseQuotationLines(lines) {
-      parsedItems = [];
-      
-      let quotationNo = "";
-      let customerName = "";
-      let projectName = "";
-      let modelBrand = "";
-      let dateStr = "";
-      let preparer = "";
-
-      for (let i = 0; i < lines.length; i++) {
-        let line = lines[i];
-
-        if (line.includes("Our ref") || line.includes("Quotation No")) {
-          const match = line.match(/NTL-Q-[0-9-]+/i);
-          if (match) quotationNo = match[0];
-        }
-
-        if (line.startsWith("To :") || line.startsWith("To")) {
-          customerName = line.replace(/To\s*:/i, "").trim();
-        }
-
-        if (line.includes("Re:") || line.includes("Quotation of")) {
-          let fullRe = line;
-          if (i + 1 < lines.length && !lines[i+1].match(/^\d+\./)) {
-            fullRe += " " + lines[i+1];
-          }
-          
-          let forMatch = fullRe.match(/for\s+(.*)/i);
-          if (forMatch) {
-            projectName = forMatch[1].replace(/^\(Ref:.*?\)\s*/i, "").trim();
-          } else {
-            projectName = fullRe.replace(/Re:\s*Quotation of/i, "").trim();
-          }
-        }
-
-        if (line.includes("Modifications of")) {
-          modelBrand = line.replace(/Modifications of/i, "").replace(/with following items:/i, "").trim();
-        }
-
-        if (line.includes("Date :") || line.includes("Date")) {
-          const dateMatch = line.match(/\d{1,2}\s+[A-Za-z]+\s+\d{4}/);
-          if (dateMatch) dateStr = dateMatch[0];
-        }
-
-        if (line.includes("Vincy")) preparer = "Vincy";
-
-        // 匹配號碼項目 (例如 1. Supply and install...)
-        const itemMatch = line.match(/^(\d+)\.\s*(.*)/);
-        if (itemMatch) {
-          let itemText = itemMatch[2];
-          let j = i + 1;
-          while (j < lines.length) {
-            let nextLine = lines[j];
-            if (nextLine.match(/^(\d+)\./) || nextLine.includes("Total Amount") || nextLine.includes("Remarks:") || nextLine.includes("Room A")) {
-              break;
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                        }
+                    }
+                }
             }
-            itemText += " " + nextLine;
-            j++;
-          }
-          
-          if (!itemText.includes("Total Amount") && !itemText.includes("Room A")) {
-            parsedItems.push(createParsedItemObj(itemText.trim()));
-          }
         }
-      }
-
-      // 自動填寫表單資訊
-      if (quotationNo) {
-        document.getElementById('contract-no').value = quotationNo;
-        const modNum = quotationNo.replace("NTL-Q-", "").replace("-20", "-");
-        document.getElementById('mod-order-no').value = `NTL-MOD-${modNum}`;
-      }
-      
-      customerName = customerName.replace(/Our ref\s*:\s*NTL-Q-[0-9-]+/gi, "").trim();
-      if (customerName) document.getElementById('customer-name').value = customerName;
-      if (projectName) document.getElementById('project-name').value = projectName;
-      if (modelBrand) document.getElementById('vehicle-model').value = modelBrand;
-      if (preparer) document.getElementById('preparer-name').value = preparer;
-
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) {
-          document.getElementById('order-date').value = d.toISOString().split('T')[0];
-          autoCalculateDeliveryDate();
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
         }
-      }
 
-      renderParsedItems();
-    }
-
-    // 比對詞庫並生成項目物件
-    function createParsedItemObj(enText) {
-      let matchedDict = null;
-      for (let dict of dictionary) {
-        if (enText.toLowerCase().includes(dict.keyword.toLowerCase())) {
-          matchedDict = dict;
-          break;
+        /* Print styling for perfect document printing */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .print-container {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
         }
-      }
 
-      let qty = "1套";
-      const qtyMatch = enText.match(/(\d+)\s*(units|sets|pairs|pcs)/i);
-      if (qtyMatch) {
-        qty = `${qtyMatch[1]}${matchedDict ? matchedDict.unit : '個'}`;
-      }
-
-      return {
-        en: enText,
-        zh: matchedDict ? matchedDict.zh : enText,
-        category: matchedDict ? matchedDict.category : "車身裝嵌",
-        model: matchedDict ? matchedDict.model : "-",
-        qty: qty
-      };
-    }
-
-    // 渲染對照列表
-    function renderParsedItems() {
-      const tbody = document.getElementById('parsed-items-tbody');
-      const emptyState = document.getElementById('empty-parsed-state');
-      const countBadge = document.getElementById('parsed-count');
-
-      tbody.innerHTML = '';
-      countBadge.innerText = `共 ${parsedItems.length} 項`;
-
-      if (parsedItems.length === 0) {
-        emptyState.classList.remove('hidden');
-        return;
-      } else {
-        emptyState.classList.add('hidden');
-      }
-
-      parsedItems.forEach((item, idx) => {
-        const tr = document.createElement('tr');
-        
-        let optionsHtml = dictionary.map(d => 
-          `<option value="${d.zh}" ${d.zh === item.zh ? 'selected' : ''}>[${d.category}] ${d.zh}</option>`
-        ).join('');
-        optionsHtml += `<option value="${item.zh}" ${!dictionary.some(d=>d.zh===item.zh) ? 'selected' : ''}>[自訂/其他] ${item.zh}</option>`;
-
-        tr.innerHTML = `
-          <td class="py-2.5 px-3 text-center text-slate-400 font-medium">${idx + 1}</td>
-          <td class="py-2.5 px-4 text-xs font-mono text-slate-600 bg-slate-50 rounded p-2 border border-slate-100">${item.en}</td>
-          <td class="py-2.5 px-4">
-            <select onchange="updateItemZh(${idx}, this.value)" class="w-full text-xs p-2 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 bg-white">
-              ${optionsHtml}
-            </select>
-            <input type="text" value="${item.zh}" onchange="updateItemZhCustom(${idx}, this.value)" class="w-full text-xs mt-1 p-1 border border-slate-200 rounded text-slate-600">
-          </td>
-          <td class="py-2.5 px-3">
-            <select onchange="parsedItems[${idx}].category = this.value" class="w-full text-xs p-1.5 border border-slate-300 rounded">
-              <option value="車身裝嵌" ${item.category==='車身裝嵌'?'selected':''}>車身裝嵌</option>
-              <option value="電器" ${item.category==='電器'?'selected':''}>電器</option>
-              <option value="其他" ${item.category==='其他'?'selected':''}>其他</option>
-            </select>
-          </td>
-          <td class="py-2.5 px-3">
-            <input type="text" value="${item.model}" onchange="parsedItems[${idx}].model = this.value" class="w-full text-xs p-1.5 border border-slate-300 rounded">
-          </td>
-          <td class="py-2.5 px-3">
-            <input type="text" value="${item.qty}" onchange="parsedItems[${idx}].qty = this.value" class="w-full text-xs p-1.5 border border-slate-300 rounded">
-          </td>
-          <td class="py-2.5 px-3 text-center">
-            <button onclick="deleteParsedItem(${idx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function updateItemZh(idx, val) {
-      parsedItems[idx].zh = val;
-      const dictMatch = dictionary.find(d => d.zh === val);
-      if (dictMatch) {
-        parsedItems[idx].category = dictMatch.category;
-        parsedItems[idx].model = dictMatch.model;
-      }
-      renderParsedItems();
-    }
-
-    function updateItemZhCustom(idx, val) {
-      parsedItems[idx].zh = val;
-    }
-
-    function deleteParsedItem(idx) {
-      parsedItems.splice(idx, 1);
-      renderParsedItems();
-    }
-
-    function addNewRow() {
-      parsedItems.push({
-        en: "New Manual Item",
-        zh: "新新增項目",
-        category: "車身裝嵌",
-        model: "-",
-        qty: "1套"
-      });
-      renderParsedItems();
-    }
-
-    function reMatchAll() {
-      parsedItems = parsedItems.map(item => createParsedItemObj(item.en));
-      renderParsedItems();
-    }
-
-    // 更新預覽畫面
-    function updatePreviewDoc() {
-      document.getElementById('p-mod-order-no').innerText = document.getElementById('mod-order-no').value || '-';
-      document.getElementById('p-contract-no').innerText = document.getElementById('contract-no').value || '-';
-      document.getElementById('p-customer-name').innerText = document.getElementById('customer-name').value || '-';
-      document.getElementById('p-project-name').innerText = document.getElementById('project-name').value || '-';
-      document.getElementById('p-vehicle-model').innerText = document.getElementById('vehicle-model').value || '-';
-      document.getElementById('p-vin-no').innerText = document.getElementById('vin-no').value || '-';
-      document.getElementById('p-order-date').innerText = document.getElementById('order-date').value || '-';
-      document.getElementById('p-delivery-date').innerText = document.getElementById('delivery-date').value || '-';
-      document.getElementById('p-drawing-no').innerText = document.getElementById('drawing-no').value || '-';
-      document.getElementById('p-wiring-no').innerText = document.getElementById('wiring-no').value || '-';
-      document.getElementById('p-preparer-name').innerText = document.getElementById('preparer-name').value || '-';
-      document.getElementById('p-form-code').innerText = document.getElementById('form-code').value || '-';
-
-      const tbody = document.getElementById('p-items-tbody');
-      tbody.innerHTML = '';
-
-      const categories = ["車身裝嵌", "電器", "其他"];
-
-      categories.forEach(cat => {
-        const catItems = parsedItems.filter(i => i.category === cat);
-        if (catItems.length > 0) {
-          catItems.forEach((item, idx) => {
-            const tr = document.createElement('tr');
-            tr.className = "text-center";
-            tr.innerHTML = `
-              ${idx === 0 ? `<td rowspan="${catItems.length}" class="font-bold sheet-sub-bg border">${cat}</td>` : ''}
-              <td class="border">${idx + 1}</td>
-              <td class="border text-left font-medium">${item.zh}</td>
-              <td class="border">${item.model}</td>
-              <td class="border">${item.qty}</td>
-              <td class="border text-xs text-slate-400">〇 完成</td>
-              <td class="border text-xs text-slate-400">合格 / 不合格</td>
-            `;
-            tbody.appendChild(tr);
-          });
+        .table-form th, .table-form td {
+            border: 1px solid #1e293b;
+            padding: 4px 6px;
+            font-size: 13px;
         }
-      });
 
-      updatePreviewVisibility();
-    }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <div id="app" class="flex-grow flex flex-col">
+        <!-- Header -->
+        <header class="bg-brand-800 text-white shadow-md no-print sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-white text-brand-800 p-2 rounded-lg font-bold text-xl flex items-center justify-center w-10 h-10 shadow">
+                        <i class="fa-solid fa-truck-gear"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-wide">車輛改裝通知單 (Job Sheet)製作系統</h1>
+                        <p class="text-xs text-brand-100">新力機械有限公司 (New Tech Motor Engineering Ltd.)</p>
+                    </div>
+                </div>
 
-    function updatePreviewVisibility() {
-      const showQuality = document.getElementById('toggle-quality-sec').checked;
-      const showSignature = document.getElementById('toggle-signature-sec').checked;
+                <!-- Navigation Tabs -->
+                <nav class="flex space-x-1 bg-brand-700/60 p-1 rounded-lg">
+                    <button @click="activeTab = 'matching'" 
+                        :class="activeTab === 'matching' ? 'bg-white text-brand-800 shadow' : 'text-white hover:bg-brand-700'"
+                        class="px-4 py-1.5 rounded-md text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-list-check"></i> 1. 報價單解析與下拉對照
+                    </button>
+                    <button @click="activeTab = 'preview'" 
+                        :class="activeTab === 'preview' ? 'bg-white text-brand-800 shadow' : 'text-white hover:bg-brand-700'"
+                        class="px-4 py-1.5 rounded-md text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice"></i> 2. 生產通知單預覽與匯出
+                    </button>
+                    <button @click="activeTab = 'dictionary'" 
+                        :class="activeTab === 'dictionary' ? 'bg-white text-brand-800 shadow' : 'text-white hover:bg-brand-700'"
+                        class="px-4 py-1.5 rounded-md text-sm font-medium transition flex items-center gap-2">
+                        <i class="fa-solid fa-book-bookmark"></i> 3. 英文詞庫資料庫 ({{ dictionary.length }})
+                    </button>
+                </nav>
+            </div>
+        </header>
 
-      document.getElementById('section-quality').style.display = showQuality ? 'block' : 'none';
-      document.getElementById('section-signature').style.display = showSignature ? 'block' : 'none';
-    }
+        <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
 
-    // 匯出 Word (.doc)
-    function downloadAsWord() {
-      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
-            "xmlns:w='urn:schemas-microsoft-com:office:word' "+
-            "xmlns='http://www.w3.org/TR/REC-html40'>"+
-            "<head><meta charset='utf-8'><title>車輛改裝通知單 (Job Sheet)</title></head><body>";
-      const footer = "</body></html>";
-      const sourceHTML = header + document.getElementById("printable-doc").innerHTML + footer;
+            <!-- TAB 1: MATCHING & FORM EDITING -->
+            <div v-show="activeTab === 'matching'" class="space-y-6">
+                
+                <!-- Quick Demo Loader & File Upload Banner -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4 mb-4">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-file-arrow-up text-brand-600"></i>
+                                步驟 1：載入或貼上英文報價單文字
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-1">
+                                系統會以設定好的詞庫進行自動比對，並為每個項目匹配預設中文，您可隨時透過下拉選單調整。
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-medium px-3.5 py-2 rounded-lg cursor-pointer transition flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-upload"></i> 上傳 PDF / Excel / TXT
+                                <input type="file" @change="handleFileUpload" accept=".pdf,.xlsx,.xls,.txt" class="hidden">
+                            </label>
+                        </div>
+                    </div>
 
-      const blob = new Blob(['\ufeff', sourceHTML], {
-        type: 'application/msword'
-      });
+                    <!-- Vehicle & Order Header Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs">
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">改裝單號 (Mod Order No.)</label>
+                            <input v-model="projectInfo.modOrderNo" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">合同 / 訂單編號 (Contract No.)</label>
+                            <input v-model="projectInfo.contractNo" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">顧客名稱 (Customer)</label>
+                            <input v-model="projectInfo.customerName" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">項目名稱 (Project Name)</label>
+                            <input v-model="projectInfo.projectName" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">車型 / 品牌 (Model / Brand)</label>
+                            <input v-model="projectInfo.vehicleModel" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">車架號 (VIN)</label>
+                            <input v-model="projectInfo.vin" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">下單日期 (Order Date)</label>
+                            <input v-model="projectInfo.orderDate" @change="onOrderDateChange" type="date" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">預計交付日期 (Delivery Date)</label>
+                            <input v-model="projectInfo.expectedDelivery" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">改裝圖編號 (Drawing No.)</label>
+                            <input v-model="projectInfo.drawingNo" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">接線圖編號 (Wiring Diagram No.)</label>
+                            <input v-model="projectInfo.wiringNo" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">填表人 (Preparer)</label>
+                            <input v-model="projectInfo.preparer" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">填表單位 (Department)</label>
+                            <input v-model="projectInfo.department" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">表單版本 (Form Code)</label>
+                            <input v-model="projectInfo.formCode" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                    </div>
+                </div>
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${document.getElementById('mod-order-no').value || 'NTL-MOD-JobSheet'}.doc`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+                <!-- Matching Engine Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-table-cells text-brand-600"></i>
+                                步驟 2：報價單英文項目與標準中文下拉對照 (共 {{ parsedItems.length }} 項)
+                            </h2>
+                            <p class="text-xs text-slate-500">
+                                右側選單已根據字典庫關鍵字自動對應，點擊下拉即可選擇其他中文名稱，或自行手動修改。
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="addNewItem" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded transition flex items-center gap-1">
+                                <i class="fa-solid fa-plus"></i> 手動新增項目
+                            </button>
+                            <button @click="autoRematch" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded transition flex items-center gap-1 border">
+                                <i class="fa-solid fa-rotate"></i> 重新自動比對
+                            </button>
+                        </div>
+                    </div>
 
-    // 詞庫表格渲染
-    function renderDictTable() {
-      const tbody = document.getElementById('dict-table-tbody');
-      document.getElementById('dict-count-badge').innerText = dictionary.length;
-      tbody.innerHTML = '';
+                    <!-- Items Table -->
+                    <div class="overflow-x-auto custom-scrollbar border rounded-lg">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 border-b font-semibold">
+                                    <th class="p-2.5 w-10 text-center">#</th>
+                                    <th class="p-2.5 w-1/3">報價單英文原文 (Quotation Description)</th>
+                                    <th class="p-2.5 w-1/3">對應中文項目 (下拉選擇或自訂)</th>
+                                    <th class="p-2.5 w-28">類別</th>
+                                    <th class="p-2.5 w-32">型號 / 編號</th>
+                                    <th class="p-2.5 w-20">數量</th>
+                                    <th class="p-2.5 w-16 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                <tr v-for="(item, index) in parsedItems" :key="index" class="hover:bg-slate-50 transition">
+                                    <td class="p-2 text-center font-mono text-slate-400">{{ index + 1 }}</td>
+                                    
+                                    <!-- Original EN -->
+                                    <td class="p-2">
+                                        <textarea v-model="item.rawEn" rows="2" 
+                                            @input="onRawEnChange(item)"
+                                            class="w-full p-1.5 border rounded focus:ring-1 focus:ring-brand-500 text-xs font-mono bg-slate-50 text-slate-700 resize-none">
+                                        </textarea>
+                                    </td>
 
-      dictionary.forEach((d, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="py-2.5 px-4 font-mono text-xs">${d.keyword}</td>
-          <td class="py-2.5 px-4 font-medium">${d.zh}</td>
-          <td class="py-2.5 px-3"><span class="px-2 py-0.5 text-xs bg-slate-100 rounded">${d.category}</span></td>
-          <td class="py-2.5 px-3 text-xs text-slate-500">${d.model}</td>
-          <td class="py-2.5 px-3 text-xs text-slate-500">${d.unit}</td>
-          <td class="py-2.5 px-3 text-center">
-            <button onclick="deleteDictItem(${d.id})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+                                    <!-- Matched Chinese Dropdown -->
+                                    <td class="p-2">
+                                        <div class="space-y-1">
+                                            <select v-model="item.selectedDictId" @change="onDictSelectChange(item)"
+                                                class="w-full p-1.5 border rounded bg-white font-medium text-slate-800 focus:ring-1 focus:ring-brand-500 text-xs shadow-sm">
+                                                <option value="">-- 請選擇對照項目 (或手動填寫) --</option>
+                                                <option v-for="dict in dictionary" :key="dict.id" :value="dict.id">
+                                                    [{{ dict.category }}] {{ dict.zhName }}
+                                                </option>
+                                            </select>
+                                            <input v-model="item.zhName" type="text" placeholder="手動修改中文名稱"
+                                                class="w-full p-1.5 border rounded text-xs bg-amber-50/50 text-slate-800 border-amber-200 focus:bg-white">
+                                        </div>
+                                    </td>
 
-    function deleteDictItem(id) {
-      dictionary = dictionary.filter(d => d.id !== id);
-      renderDictTable();
-    }
+                                    <!-- Category -->
+                                    <td class="p-2">
+                                        <select v-model="item.category" class="w-full p-1.5 border rounded text-xs bg-white">
+                                            <option value="車身裝嵌">車身裝嵌</option>
+                                            <option value="電器">電器</option>
+                                            <option value="其他">其他</option>
+                                        </select>
+                                    </td>
 
-    function openAddDictModal() {
-      const keyword = prompt("請輸入英文關鍵字 (例如: wheelchair lift):");
-      if (!keyword) return;
-      const zh = prompt("請輸入標準中文名稱:");
-      if (!zh) return;
-      
-      dictionary.push({
-        id: Date.now(),
-        keyword: keyword,
-        zh: zh,
-        category: "車身裝嵌",
-        model: "-",
-        unit: "套"
-      });
-      renderDictTable();
-    }
+                                    <!-- Model -->
+                                    <td class="p-2">
+                                        <input v-model="item.model" type="text" class="w-full p-1.5 border rounded text-xs bg-white">
+                                    </td>
 
-    function exportDictExcel() {
-      const ws = XLSX.utils.json_to_sheet(dictionary);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Dictionary");
-      XLSX.writeFile(wb, "Quotation_Dictionary.xlsx");
-    }
-  </script>
+                                    <!-- Quantity -->
+                                    <td class="p-2">
+                                        <input v-model="item.qty" type="text" class="w-full p-1.5 border rounded text-xs bg-white text-center">
+                                    </td>
+
+                                    <!-- Actions -->
+                                    <td class="p-2 text-center">
+                                        <button @click="removeItem(index)" class="text-rose-500 hover:text-rose-700 p-1.5 rounded hover:bg-rose-50 transition" title="刪除項目">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr v-if="parsedItems.length === 0">
+                                    <td colspan="7" class="p-8 text-center text-slate-400">
+                                        <i class="fa-regular fa-folder-open text-3xl mb-2 block"></i>
+                                        暫無資料，請點擊上方「載入範例報價單」或上傳檔案。
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button @click="activeTab = 'preview'" class="bg-brand-600 hover:bg-brand-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
+                            前往通知單預覽與匯出 <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: PRODUCTION FORM PREVIEW & PRINT -->
+            <div v-show="activeTab === 'preview'" class="space-y-6">
+                
+                <!-- Top Toolbar for Preview -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap justify-between items-center gap-4 no-print">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded">即時渲染預覽</span>
+                            <p class="text-xs text-slate-500">此頁面展現標準 NTL-MOD-002A 生產通知單排版，可直接列印或導出 Word。</p>
+                        </div>
+                        
+                        <!-- Show / Hide Section Controls -->
+                        <div class="flex items-center gap-3 border-l border-slate-200 pl-4 py-0.5">
+                            <label class="flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none hover:text-brand-700">
+                                <input type="checkbox" v-model="showComplianceSection" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                                顯示「質量與法規合規要求」
+                            </label>
+                            <label class="flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none hover:text-brand-700">
+                                <input type="checkbox" v-model="showSignaturesSection" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                                顯示「部門簽署」
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <button @click="printForm" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-print"></i> 列印 / 另存 PDF
+                        </button>
+                        <button @click="exportWord" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-file-word"></i> 下載 Word (.doc)
+                        </button>
+                        <button @click="exportJson" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 border">
+                            <i class="fa-solid fa-download"></i> 導出數據 JSON
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Printable Document Sheet (NTL-MOD-002A Format) -->
+                <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-slate-300 print-container max-w-4xl mx-auto text-black">
+                    
+                    <!-- Header Title Bar -->
+                    <div class="border-2 border-black p-2 mb-2 text-center relative">
+                        <h2 class="text-xl font-bold tracking-widest">車輛改裝通知單 (Job Sheet)</h2>
+                    </div>
+
+                    <!-- Top Info Grid (Single row, 8 columns with light blue headers) -->
+                    <table class="w-full table-form mb-4 border-collapse">
+                        <tr>
+                            <td class="font-bold w-16 text-center bg-[#e0effe]">單號</td>
+                            <td class="font-mono w-1/4">{{ projectInfo.modOrderNo }}</td>
+                            <td class="font-bold w-16 text-center bg-[#e0effe]">日期</td>
+                            <td class="font-mono w-1/5">{{ projectInfo.orderDate }}</td>
+                            <td class="font-bold w-20 text-center bg-[#e0effe]">填表人</td>
+                            <td class="w-1/6">{{ projectInfo.preparer }}</td>
+                            <td class="font-bold w-16 text-center bg-[#e0effe]">版本</td>
+                            <td class="font-mono">{{ projectInfo.formCode }}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Section I: Vehicle & Customer Info -->
+                    <div class="bg-slate-800 text-white font-bold text-sm px-2 py-1 mb-1 border border-black">
+                        一、車輛與客戶資訊
+                    </div>
+                    <table class="w-full table-form mb-4 border-collapse">
+                        <tr>
+                            <td class="font-bold w-28 bg-slate-50 align-middle">合同 / 訂單編號</td>
+                            <td class="w-36 align-middle font-mono">{{ projectInfo.contractNo }}</td>
+                            <td class="font-bold w-20 bg-slate-50 align-middle">顧客名稱</td>
+                            <td class="w-48 align-middle">{{ projectInfo.customerName }}</td>
+                            <td class="font-bold w-24 bg-slate-50 align-middle">項目名稱 / 收貨人</td>
+                            <td class="align-middle">{{ projectInfo.projectName }}</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold bg-slate-50 align-middle">車型 / 品牌</td>
+                            <td class="align-middle">{{ projectInfo.vehicleModel }}</td>
+                            <td class="font-bold bg-slate-50 align-middle">車架號 (VIN)</td>
+                            <td class="font-mono align-middle">{{ projectInfo.vin }}</td>
+                            <td class="font-bold bg-slate-50 align-middle">預計交付日期</td>
+                            <td class="align-middle">{{ projectInfo.expectedDelivery }}</td>
+                        </tr>
+                    </table>
+
+                    <!-- Section II: Modification Items -->
+                    <div class="flex justify-between items-center bg-slate-800 text-white font-bold text-sm px-2 py-1 mb-1 border border-black">
+                        <span>二、 改裝項目與物料清單</span>
+                        <span class="text-xs font-normal">改裝圖編號: {{ projectInfo.drawingNo }} | 接線圖編號: {{ projectInfo.wiringNo }}</span>
+                    </div>
+
+                    <table class="w-full table-form mb-4 border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-center font-bold">
+                                <td class="w-20">類別</td>
+                                <td class="w-10">序號</td>
+                                <td>改裝項目</td>
+                                <td class="w-28">型號 / 編號</td>
+                                <td class="w-16">數量</td>
+                                <td class="w-20">技術審核</td>
+                                <td class="w-24">完工質量檢驗</td>
+                                <td class="w-16">備註</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Category: 車身裝嵌 -->
+                            <template v-for="(item, idx) in getItemsByCategory('車身裝嵌')" :key="'body-'+idx">
+                                <tr>
+                                    <td v-if="idx === 0" :rowspan="getItemsByCategory('車身裝嵌').length" class="text-center font-bold bg-slate-50">車身裝嵌</td>
+                                    <td class="text-center">{{ idx + 1 }}</td>
+                                    <td>{{ item.zhName }}</td>
+                                    <td class="text-center font-mono">{{ item.model || '-' }}</td>
+                                    <td class="text-center">{{ item.qty }}</td>
+                                    <td class="text-center text-xs">〇 完成</td>
+                                    <td class="text-center text-xs">合格 / 不合格</td>
+                                    <td></td>
+                                </tr>
+                            </template>
+
+                            <!-- Category: 電器 -->
+                            <template v-for="(item, idx) in getItemsByCategory('電器')" :key="'elec-'+idx">
+                                <tr>
+                                    <td v-if="idx === 0" :rowspan="getItemsByCategory('電器').length" class="text-center font-bold bg-slate-50">電器</td>
+                                    <td class="text-center">{{ idx + 1 }}</td>
+                                    <td>{{ item.zhName }}</td>
+                                    <td class="text-center font-mono">{{ item.model || '-' }}</td>
+                                    <td class="text-center">{{ item.qty }}</td>
+                                    <td class="text-center text-xs">〇 完成</td>
+                                    <td class="text-center text-xs">合格 / 不合格</td>
+                                    <td></td>
+                                </tr>
+                            </template>
+
+                            <!-- Category: 其他 -->
+                            <template v-for="(item, idx) in getItemsByCategory('其他')" :key="'oth-'+idx">
+                                <tr>
+                                    <td v-if="idx === 0" :rowspan="getItemsByCategory('其他').length" class="text-center font-bold bg-slate-50">其他</td>
+                                    <td class="text-center">{{ idx + 1 }}</td>
+                                    <td>{{ item.zhName }}</td>
+                                    <td class="text-center font-mono">{{ item.model || '-' }}</td>
+                                    <td class="text-center">{{ item.qty }}</td>
+                                    <td class="text-center text-xs">〇 完成</td>
+                                    <td class="text-center text-xs">合格 / 不合格</td>
+                                    <td></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+
+                    <!-- Section III: Quality & Compliance Requirements -->
+                    <template v-if="showComplianceSection">
+                        <div class="bg-slate-800 text-white font-bold text-sm px-2 py-1 mb-1 border border-black">
+                            三、質量與法規合規要求
+                        </div>
+                        <table class="w-full table-form mb-4 border-collapse text-xs">
+                            <tr>
+                                <td class="font-bold w-32 bg-slate-50">品質管理部</td>
+                                <td class="space-x-4">
+                                    <label><input type="checkbox" checked> 已完全滿足交付品質要求</label>
+                                    <label><input type="checkbox"> 需安排後續跟進</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold bg-slate-50">檢驗及類型評核部</td>
+                                <td class="space-x-4">
+                                    <label><input type="checkbox" checked> 已符合運輸署法規及驗車標準</label>
+                                    <label><input type="checkbox"> 需安排第三方機構測試</label>
+                                    <label><input type="checkbox"> 規格需進一步修正</label>
+                                </td>
+                            </tr>
+                        </table>
+                    </template>
+
+                    <!-- Signatures Section -->
+                    <template v-if="showSignaturesSection">
+                        <div class="bg-slate-100 font-bold text-xs px-2 py-1 mb-1 border border-black">
+                            部門簽署：
+                        </div>
+                        <table class="w-full table-form border-collapse text-xs">
+                            <tr class="bg-slate-50 font-bold text-center">
+                                <td class="w-1/4">項目部</td>
+                                <td class="w-1/4">技術及生產部</td>
+                                <td class="w-1/4">品質管理部</td>
+                                <td class="w-1/4">檢驗及類型評核部</td>
+                            </tr>
+                            <tr class="h-16">
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col justify-between h-full text-slate-400">
+                                        <span>簽署：</span>
+                                        <span>員工編號：____________</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </template>
+
+                </div>
+            </div>
+
+            <!-- TAB 3: DICTIONARY MANAGEMENT -->
+            <div v-show="activeTab === 'dictionary'" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-book-bookmark text-brand-600"></i>
+                                車輛改裝英文對照詞庫資料庫
+                            </h2>
+                            <p class="text-xs text-slate-500">
+                                您可在此維護常用工程術語的對照字典。新增項目後會自動永久儲存在瀏覽器中。
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="openAddDictModal" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-2 rounded-lg transition flex items-center gap-1 shadow-sm">
+                                <i class="fa-solid fa-plus"></i> 新增詞庫項目
+                            </button>
+                            <button @click="resetDictionary" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-lg transition border">
+                                重設預設詞庫
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dictionary Search & Filter -->
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <div class="relative flex-grow">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input v-model="dictSearchQuery" type="text" placeholder="搜尋英文關鍵字、中文名稱或型號..."
+                                class="w-full pl-8 pr-3 py-1.5 border rounded-lg text-xs focus:ring-1 focus:ring-brand-500">
+                        </div>
+                        <select v-model="dictCategoryFilter" class="p-1.5 border rounded-lg text-xs bg-white">
+                            <option value="">所有類別</option>
+                            <option value="車身裝嵌">車身裝嵌</option>
+                            <option value="電器">電器</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+
+                    <!-- Dictionary Table -->
+                    <div class="overflow-x-auto custom-scrollbar border rounded-lg">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 border-b font-semibold">
+                                    <th class="p-2.5 w-12 text-center">#</th>
+                                    <th class="p-2.5 w-1/4">英文關鍵字 (Quotation Match Keyword)</th>
+                                    <th class="p-2.5 w-1/3">標準中文名稱 (Chinese Name)</th>
+                                    <th class="p-2.5 w-24">預設類別</th>
+                                    <th class="p-2.5 w-28">預設型號</th>
+                                    <th class="p-2.5 w-20">預設單位</th>
+                                    <th class="p-2.5 w-20 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                <tr v-for="(dict, index) in filteredDictionary" :key="dict.id" class="hover:bg-slate-50 transition">
+                                    <td class="p-2.5 text-center font-mono text-slate-400">{{ index + 1 }}</td>
+                                    <td class="p-2.5 font-mono text-brand-700 font-medium">{{ dict.enKeywords.join(', ') }}</td>
+                                    <td class="p-2.5 text-slate-800 font-medium">{{ dict.zhName }}</td>
+                                    <td class="p-2.5">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-bold"
+                                            :class="dict.category==='車身裝嵌'?'bg-blue-100 text-blue-800':(dict.category==='電器'?'bg-amber-100 text-amber-800':'bg-slate-100 text-slate-700')">
+                                            {{ dict.category }}
+                                        </span>
+                                    </td>
+                                    <td class="p-2.5 font-mono text-slate-600">{{ dict.defaultModel || '-' }}</td>
+                                    <td class="p-2.5 text-slate-600">{{ dict.defaultQty || '-' }}</td>
+                                    <td class="p-2.5 text-center space-x-1">
+                                        <button @click="editDictItem(dict)" class="text-brand-600 hover:text-brand-800 p-1" title="編輯">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <button @click="deleteDictItem(dict.id)" class="text-rose-500 hover:text-rose-700 p-1" title="刪除">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Dict Add / Edit Modal -->
+        <div v-if="showAddDictModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-slate-800 text-base">
+                        {{ editingDict.id ? '編輯對照詞庫項目' : '新增對照詞庫項目' }}
+                    </h3>
+                    <button @click="showAddDictModal = false" class="text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-medium text-slate-700 mb-1">英文關鍵字 (以逗號分隔多個關鍵字)</label>
+                        <input v-model="editingDictKeyText" type="text" placeholder="例: high back, passenger seats"
+                            class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-medium text-slate-700 mb-1">標準中文名稱</label>
+                        <input v-model="editingDict.zhName" type="text" placeholder="例: 安裝高背 PVC 乘客座位"
+                            class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">類別</label>
+                            <select v-model="editingDict.category" class="w-full p-2 border rounded-md bg-white">
+                                <option value="車身裝嵌">車身裝嵌</option>
+                                <option value="電器">電器</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-700 mb-1">預設型號 / 編號</label>
+                            <input v-model="editingDict.defaultModel" type="text" placeholder="例: Reen seat"
+                                class="w-full p-2 border rounded-md font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-medium text-slate-700 mb-1">預設數量 / 單位</label>
+                        <input v-model="editingDict.defaultQty" type="text" placeholder="例: 11個 或 1套"
+                            class="w-full p-2 border rounded-md">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button @click="showAddDictModal = false" class="px-4 py-2 border rounded-md text-xs hover:bg-slate-50">取消</button>
+                    <button @click="saveDictItem" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-md text-xs font-medium">保存項目</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        // Default Dictionary based on sample quotation & production order
+        const INITIAL_DICTIONARY = [
+            { id: 'd1', enKeywords: ['passenger seats', 'high back', 'reen seat'], zhName: '安裝高背 PVC 乘客座位 (連三點式安全帶及走廊位可摺手枕)', category: '車身裝嵌', defaultModel: 'Reen seat', defaultQty: '11個' },
+            { id: 'd2', enKeywords: ['wheelchair lift', 'wako', 'under-chassis'], zhName: '安裝輪椅升降台 (底盤下自動升降及副電源)', category: '車身裝嵌', defaultModel: 'WAKO VK131', defaultQty: '1台' },
+            { id: 'd3', enKeywords: ['innotrax', 'flooring', 'linoleum', '地台路軌', 'reinforced flooring'], zhName: '安裝地台路軌及防滑地膠 (鎖輪椅用)', category: '車身裝嵌', defaultModel: 'Innotrax', defaultQty: '1套' },
+            { id: 'd4', enKeywords: ['non-slip', '防滑地膠'], zhName: '安裝防滑地膠', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd5', enKeywords: ['rear door hinges', 'door retainers', '尾門較'], zhName: '改裝尾門較及加裝尾門扣', category: '車身裝嵌', defaultModel: '尾門扣', defaultQty: '1套' },
+            { id: 'd6', enKeywords: ['half step', 'side door', '半腳踏'], zhName: '中門半腳踏', category: '車身裝嵌', defaultModel: '-', defaultQty: '1個' },
+            { id: 'd7', enKeywords: ['handrails', 'cushion tube', '不銹鋼扶手'], zhName: '安裝車窗及通道不銹鋼扶手 (連軟墊)', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd8', enKeywords: ['mudguards', '擋泥板'], zhName: '安裝纖維轆輁 / 擋泥板', category: '車身裝嵌', defaultModel: 'FW_C_01', defaultQty: '1套' },
+            { id: 'd9', enKeywords: ['indicator lights', 'light box', '乘降中', '升降中'], zhName: '安裝"升降中"燈箱連尾射燈及左右車頂角LED訊號燈', category: '電器', defaultModel: 'LB_A_01', defaultQty: '1套' },
+            { id: 'd10', enKeywords: ['cctv', 'parking sensor', 'rear view', '泊車雷達', 'parking sensors'], zhName: '安裝倒後泊車雷達及CCTV', category: '電器', defaultModel: 'CCTV_6inch', defaultQty: '1套' },
+            { id: 'd11', enKeywords: ['auto step', 'thule', '伸縮踏板'], zhName: '安裝電動伸縮踏板', category: '電器', defaultModel: 'THULE 700ALU', defaultQty: '1套' },
+            { id: 'd12', enKeywords: ['anti-theft', '防盜', 'security system'], zhName: '安裝防盜系統', category: '電器', defaultModel: 'SECURITY_01', defaultQty: '1套' },
+            { id: 'd13', enKeywords: ['door not properly closed', 'warning signal'], zhName: '車門未關緊警告訊號裝置', category: '電器', defaultModel: 'WARN_01', defaultQty: '1套' },
+            { id: 'd14', enKeywords: ['webbing securement', '4-point', '輪椅鎖扣'], zhName: '提供輪椅鎖扣及安全帶 (4點式)', category: '其他', defaultModel: 'NMI WTORS', defaultQty: '3套' },
+            { id: 'd15', enKeywords: ['reflective marking', 'reflective', '反光牌', 'reflective strips', 'aluminum plate'], zhName: '安裝尾門紅黃反光鋁板 / 反光牌', category: '其他', defaultModel: 'RP_01A', defaultQty: '1套' },
+            { id: 'd16', enKeywords: ['fluorescence strips', 'caution', '螢光條'], zhName: '地台加裝黃/黑警示螢光條', category: '其他', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd17', enKeywords: ['pvc cover', '座位保護套'], zhName: '乘客座位透明 PVC 保護套', category: '其他', defaultModel: '-', defaultQty: '11套' },
+            { id: 'd18', enKeywords: ['under mirror', '下照後鏡'], zhName: '安裝車底下照後鏡', category: '其他', defaultModel: '-', defaultQty: '1個' },
+            { id: 'd19', enKeywords: ['fish-eye', '魚眼廣角鏡'], zhName: '安裝魚眼廣角鏡', category: '其他', defaultModel: '-', defaultQty: '1個' },
+            { id: 'd20', enKeywords: ['logo', 'lettering', '機構標識', 'body color'], zhName: '噴塗車身顏色、機構標識及字樣', category: '其他', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd21', enKeywords: ['rust proofing', '防銹處理', 'rustproofing'], zhName: '提供防銹處理', category: '其他', defaultModel: '-', defaultQty: '1套' },
+            // New Items for NTL-Q-09029-2026
+            { id: 'd22', enKeywords: ['infrared device', 'obstacles', 'distance between'], zhName: '安裝車尾倒車紅外線防撞感應警示裝置', category: '電器', defaultModel: 'INFRA_01', defaultQty: '1套' },
+            { id: 'd23', enKeywords: ['electric fan', "driver's cab"], zhName: '安裝駕駛室風扇', category: '電器', defaultModel: 'FAN_01', defaultQty: '1個' },
+            { id: 'd24', enKeywords: ['railing and curtains', 'curtains'], zhName: '安裝兩側車窗窗簾及軌道', category: '車身裝嵌', defaultModel: 'CURTAIN_01', defaultQty: '1套' },
+            { id: 'd25', enKeywords: ['ta approval', 'type approval'], zhName: '安排車輛類型評核 (TA Approval) 審批手續及驗車', category: '其他', defaultModel: 'TA_APP', defaultQty: '1項' },
+            { id: 'd26', enKeywords: ['half step and auto step', 'middle entrance'], zhName: '中門安裝半腳踏及電動伸縮踏板', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd27', enKeywords: ['handrails at the middle entrance'], zhName: '安裝中門入口不銹鋼扶手', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' }
+        ];
+
+        // Sample raw quotation text matching NTL-Q-06028-2024
+        const SAMPLE_QUOTATION_TEXT = `
+Supply and install 11 units of high back PVC passenger seats (Reen seat) c/w 3-point seat belts and foldable armrest on aisle seat
+Supply material and labour to modify rear door hinges, door retainers and inside door panel
+Supply and install a pair of red / yellow reflective marking fitted onto interior panel of rear door
+Supply and install 2 units of brake & indicator lights and 1 unit of light box "乘降中" fit on the top of rear body with spot light
+Supply and install warning signal for door not properly closed
+Supply and install 3 units of 4-point webbing securement kits with 200kg capability
+Supply and install Aluminum Innotrax flooring with non-slip linoleum floor covered
+Supply and install yellow or black caution fluorescence strips on vehicle floor
+Supply and install transparent PVC cover for all passenger seats
+Supply and install one unit of automatic under-chassis wheelchair lift c/w 350kg loading (Model: WAKO VK131 - w/ automatic sliding out platform and manual flip-up handrail) including aux. power supply
+Supply and install auto step underneath the side folding door
+Supply and install half step for side door
+Supply and install one rear view under mirror
+Supply and install stainless steel handrails packed with cushion tube on middle sliding door, rear entrance and both sides windows
+Supply and install 1 unit of additional fish-eye mirrors
+Supply and install mudguards
+Supply and install rear parking sensor c/w CCTV with monitor on dashboard
+Supply and stick the organization's logo & lettering on vehicle's body
+Supply and install 1 set of anti-theft system
+`;
+
+        createApp({
+            data() {
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                
+                // Default delivery date: Today + 8 months
+                const devDate = new Date(today);
+                devDate.setMonth(devDate.getMonth() + 8);
+                const defaultDelivery = `${devDate.getFullYear()} / ${devDate.getMonth() + 1}`;
+
+                return {
+                    activeTab: 'matching',
+                    showComplianceSection: true,
+                    showSignaturesSection: true,
+                    dictionary: [...INITIAL_DICTIONARY],
+                    dictSearchQuery: '',
+                    dictCategoryFilter: '',
+                    showAddDictModal: false,
+                    editingDictKeyText: '',
+                    editingDict: { id: null, enKeywords: [], zhName: '', category: '車身裝嵌', defaultModel: '', defaultQty: '' },
+                    
+                    // Project Info Header
+                    projectInfo: {
+                        modOrderNo: '',
+                        contractNo: '',
+                        customerName: '',
+                        projectName: '',
+                        vehicleModel: '',
+                        vin: '',
+                        orderDate: todayStr,
+                        expectedDelivery: defaultDelivery,
+                        drawingNo: '20251210(1)',
+                        wiringNo: 'C_C_25_2C',
+                        department: '',
+                        preparer: '',
+                        formCode: 'NTL-MOD-002A (Rev. A/0)'
+                    },
+
+                    // Extracted Quotation Items
+                    parsedItems: []
+                }
+            },
+            computed: {
+                filteredDictionary() {
+                    return this.dictionary.filter(d => {
+                        const matchesCat = !this.dictCategoryFilter || d.category === this.dictCategoryFilter;
+                        const q = this.dictSearchQuery.toLowerCase();
+                        const matchesQuery = !q || 
+                            d.zhName.toLowerCase().includes(q) || 
+                            d.enKeywords.some(k => k.toLowerCase().includes(q)) ||
+                            (d.defaultModel && d.defaultModel.toLowerCase().includes(q));
+                        return matchesCat && matchesQuery;
+                    });
+                }
+            },
+            mounted() {
+                // Load saved dictionary from localStorage if available
+                const savedDict = localStorage.getItem('ntl_dictionary');
+                if (savedDict) {
+                    try {
+                        this.dictionary = JSON.parse(savedDict);
+                    } catch(e) {
+                        console.error('Failed to parse saved dictionary', e);
+                    }
+                }
+            },
+            methods: {
+                onOrderDateChange() {
+                    if (this.projectInfo.orderDate) {
+                        const d = new Date(this.projectInfo.orderDate);
+                        if (!isNaN(d.getTime())) {
+                            d.setMonth(d.getMonth() + 8);
+                            this.projectInfo.expectedDelivery = `${d.getFullYear()} / ${d.getMonth() + 1}`;
+                        }
+                    }
+                },
+
+                // Match raw English string with dictionary terms based on key occurrences
+                findBestMatch(rawText) {
+                    const textLower = rawText.toLowerCase();
+                    let bestMatch = null;
+                    let highestScore = 0;
+
+                    for (const dict of this.dictionary) {
+                        let score = 0;
+                        for (const kw of dict.enKeywords) {
+                            if (textLower.includes(kw.toLowerCase())) {
+                                score += kw.length; // Priority to longer matching phrases
+                            }
+                        }
+                        if (score > highestScore) {
+                            highestScore = score;
+                            bestMatch = dict;
+                        }
+                    }
+                    return bestMatch;
+                },
+
+                // Extract quantity hint from text
+                extractQtyHint(text) {
+                    const numMatch = text.match(/(\d+)\s*\(?[a-zA-Z]*\)?\s*(units|sets|set|pcs|unit|張|台|個|套)?/i);
+                    if (numMatch) {
+                        const num = numMatch[1];
+                        if (text.toLowerCase().includes('seat') || text.toLowerCase().includes('座位')) return `${num}個`;
+                        if (text.toLowerCase().includes('lift') || text.toLowerCase().includes('升降台')) return `${num}台`;
+                        return `${num}套`;
+                    }
+                    return '1套';
+                },
+
+                // Extract Metadata (Customer, Date, Ref, Model, Project Name) from PDF / Text
+                extractMetadataFromText(fullText) {
+                    // Quotation Ref No. (e.g., NTL-Q-09029-2026 or NTL-Q-06028-2024)
+                    const refMatch = fullText.match(/Our ref\s*:\s*(NTL-Q-[\w-]+)/i) || fullText.match(/(NTL-Q-\d+-\d+)/i);
+                    if (refMatch) {
+                        this.projectInfo.contractNo = refMatch[1];
+                        // Auto-generate Mod Order No from Quotation No (e.g., NTL-MOD-26-029)
+                        const parts = refMatch[1].split('-');
+                        if (parts.length >= 4) {
+                            const numStr = parts[2].slice(-3);
+                            const yearShort = parts[3].slice(-2);
+                            this.projectInfo.modOrderNo = `NTL-MOD-${yearShort}-${numStr}`;
+                        }
+                    }
+
+                    // Auto set order date to TODAY (or extracted date if valid)
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const dateMatch = fullText.match(/Date\s*:\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})/i);
+                    if (dateMatch) {
+                        try {
+                            const d = new Date(dateMatch[1]);
+                            if (!isNaN(d.getTime())) {
+                                this.projectInfo.orderDate = d.toISOString().split('T')[0];
+                            } else {
+                                this.projectInfo.orderDate = todayStr;
+                            }
+                        } catch(e) {
+                            this.projectInfo.orderDate = todayStr;
+                        }
+                    } else {
+                        this.projectInfo.orderDate = todayStr;
+                    }
+
+                    // Recalculate Expected Delivery Date (+8 Months)
+                    this.onOrderDateChange();
+
+                    // Customer Name (To: Crown Motors Limited) - Clean up "Our ref", "Attn", etc.
+                    const customerMatch = fullText.match(/To\s*:\s*([^\n\r]+)/i);
+                    if (customerMatch) {
+                        let cust = customerMatch[1].replace(/Our ref\s*:.*/i, '').replace(/Attn\s*:.*/i, '').replace(/Tel\s*:.*/i, '').trim();
+                        this.projectInfo.customerName = cust;
+                    }
+
+                    // Extract Preparer if Vincy Chiu present
+                    if (fullText.includes("Vincy")) {
+                        this.projectInfo.preparer = "Vincy";
+                    }
+
+                    // Project / Re: Extract text after "for" (e.g. for Shining Social Services (Ref: SSS-2026-0110))
+                    const reMatch = fullText.match(/Re\s*:\s*([^\n\r]+)/i);
+                    if (reMatch) {
+                        const reText = reMatch[1].trim();
+                        const forMatch = reText.match(/\bfor\s+(.+)$/i);
+                        if (forMatch && forMatch[1]) {
+                            this.projectInfo.projectName = forMatch[1].trim();
+                        } else {
+                            this.projectInfo.projectName = reText.replace(/^Quotation of\s+/i, '').trim();
+                        }
+                    }
+
+                    // Vehicle Model (Modifications of GDB70R/GDB110R or Mit. Fuso)
+                    const modelMatch = fullText.match(/Modifications of\s+([^\n\r]+)/i) || fullText.match(/Model\s*:\s*([^\n\r]+)/i);
+                    if (modelMatch) {
+                        this.projectInfo.vehicleModel = modelMatch[1].replace(/with following items:?/i, '').trim();
+                    }
+                },
+
+                parseQuotationText(text) {
+                    // Extract Header Metadata
+                    this.extractMetadataFromText(text);
+
+                    // Split lines and clean noise (Header, Remarks, Footer)
+                    const rawLines = text.split('\n');
+                    const cleanedLines = [];
+                    let currentBuffer = "";
+
+                    for (let line of rawLines) {
+                        line = line.trim();
+                        if (!line) continue;
+
+                        // Filter out headers/footers/remarks
+                        if (line.match(/^Room\s+[A-Z0-9]/i) || 
+                            line.match(/^Tel\s*:/i) || 
+                            line.match(/^Fax\s*:/i) || 
+                            line.match(/^E-mail\s*:/i) || 
+                            line.match(/^Remarks\s*:/i) || 
+                            line.match(/^[a-f]\.\s+Any additional/i) || 
+                            line.match(/^[a-f]\.\s+/i) || 
+                            line.match(/^Total Amount\s*:/i) || 
+                            line.match(/^Yours sincerely/i) || 
+                            line.match(/^Confirmed\s+(&|and)\s+Accepted/i) ||
+                            line.match(/^NEW TECH MOTOR ENGINEERING/i) ||
+                            line.match(/^Page\s+\d+/i) ||
+                            line.match(/^Our ref\s*:/i) ||
+                            line.match(/^Date\s*:/i) ||
+                            line.match(/^Attn\s*:/i) ||
+                            line.match(/^Re\s*:/i) ||
+                            line.match(/^No\.\s+Description/i) ||
+                            line.match(/^Modifications of/i)) {
+                            
+                            if (currentBuffer) {
+                                cleanedLines.push(currentBuffer);
+                                currentBuffer = "";
+                            }
+                            continue;
+                        }
+
+                        // Check if line starts with a new numbered item (e.g. "1.", "2.", "15.")
+                        const numStartMatch = line.match(/^(\d+)[\.\)]\s*(.*)/);
+                        if (numStartMatch) {
+                            if (currentBuffer) {
+                                cleanedLines.push(currentBuffer);
+                            }
+                            currentBuffer = numStartMatch[2]; // remove "1. " prefix
+                        } else {
+                            if (currentBuffer) {
+                                currentBuffer += " " + line;
+                            } else if (line.length > 10 && !line.includes("HK$")) {
+                                currentBuffer = line;
+                            }
+                        }
+                    }
+
+                    if (currentBuffer) {
+                        cleanedLines.push(currentBuffer);
+                    }
+
+                    // Map to parsed items
+                    this.parsedItems = cleanedLines
+                        .filter(l => l.length > 5 && !l.toLowerCase().startsWith('unit price') && !l.toLowerCase().startsWith('total amount'))
+                        .map(line => {
+                            const match = this.findBestMatch(line);
+                            return {
+                                rawEn: line,
+                                selectedDictId: match ? match.id : '',
+                                zhName: match ? match.zhName : line,
+                                category: match ? match.category : '車身裝嵌',
+                                model: match ? match.defaultModel : '-',
+                                qty: match ? match.defaultQty : this.extractQtyHint(line)
+                            };
+                        });
+                },
+
+                loadSampleQuotation() {
+                    this.parseQuotationText(SAMPLE_QUOTATION_TEXT);
+                },
+
+                autoRematch() {
+                    this.parsedItems.forEach(item => {
+                        const match = this.findBestMatch(item.rawEn);
+                        if (match) {
+                            item.selectedDictId = match.id;
+                            item.zhName = match.zhName;
+                            item.category = match.category;
+                            item.model = match.defaultModel;
+                        }
+                    });
+                },
+
+                onDictSelectChange(item) {
+                    if (!item.selectedDictId) return;
+                    const dict = this.dictionary.find(d => d.id === item.selectedDictId);
+                    if (dict) {
+                        item.zhName = dict.zhName;
+                        item.category = dict.category;
+                        item.model = dict.defaultModel;
+                        if (!item.qty || item.qty === '1套') item.qty = dict.defaultQty;
+                    }
+                },
+
+                onRawEnChange(item) {
+                    const match = this.findBestMatch(item.rawEn);
+                    if (match && !item.selectedDictId) {
+                        item.selectedDictId = match.id;
+                        item.zhName = match.zhName;
+                        item.category = match.category;
+                        item.model = match.defaultModel;
+                    }
+                },
+
+                addNewItem() {
+                    this.parsedItems.push({
+                        rawEn: 'New Modification Item',
+                        selectedDictId: '',
+                        zhName: '新加裝項目名稱',
+                        category: '車身裝嵌',
+                        model: '-',
+                        qty: '1套'
+                    });
+                },
+
+                removeItem(index) {
+                    this.parsedItems.splice(index, 1);
+                },
+
+                getItemsByCategory(category) {
+                    return this.parsedItems.filter(i => i.category === category);
+                },
+
+                handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+
+                    if (file.name.endsWith('.txt')) {
+                        reader.onload = (e) => this.parseQuotationText(e.target.result);
+                        reader.readAsText(file);
+                    } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                        reader.onload = (e) => {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                            const text = json.map(row => row.join(' ')).join('\n');
+                            this.parseQuotationText(text);
+                        };
+                        reader.readAsArrayBuffer(file);
+                    } else if (file.name.endsWith('.pdf')) {
+                        reader.onload = async (e) => {
+                            try {
+                                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                                const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+                                let extractedText = '';
+                                
+                                // Iterate pages and preserve line breaks based on Y positions
+                                for (let i = 1; i <= pdf.numPages; i++) {
+                                    const page = await pdf.getPage(i);
+                                    const textContent = await page.getTextContent();
+                                    let lastY = null;
+                                    let pageText = '';
+
+                                    for (const item of textContent.items) {
+                                        if (!item.str) continue;
+                                        const currentY = item.transform ? item.transform[5] : null;
+
+                                        // If Y coordinate drops significantly, it's a new line
+                                        if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 6) {
+                                            pageText += '\n';
+                                        } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
+                                            pageText += ' ';
+                                        }
+                                        pageText += item.str;
+                                        if (currentY !== null) lastY = currentY;
+                                    }
+                                    extractedText += pageText + '\n';
+                                }
+                                
+                                this.parseQuotationText(extractedText);
+                            } catch (err) {
+                                alert('PDF 解析失敗，請確認檔案是否有密碼保護。');
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                },
+
+                // Dictionary CRUD
+                openAddDictModal() {
+                    this.editingDict = { id: null, enKeywords: [], zhName: '', category: '車身裝嵌', defaultModel: '', defaultQty: '1套' };
+                    this.editingDictKeyText = '';
+                    this.showAddDictModal = true;
+                },
+
+                editDictItem(dict) {
+                    this.editingDict = { ...dict };
+                    this.editingDictKeyText = dict.enKeywords.join(', ');
+                    this.showAddDictModal = true;
+                },
+
+                saveDictionaryToStorage() {
+                    localStorage.setItem('ntl_dictionary', JSON.stringify(this.dictionary));
+                },
+
+                saveDictItem() {
+                    const keys = this.editingDictKeyText.split(',').map(k => k.trim()).filter(k => k.length > 0);
+                    if (!this.editingDict.zhName || keys.length === 0) {
+                        alert('請輸入英文關鍵字與標準中文名稱！');
+                        return;
+                    }
+
+                    if (this.editingDict.id) {
+                        const idx = this.dictionary.findIndex(d => d.id === this.editingDict.id);
+                        if (idx !== -1) {
+                            this.dictionary[idx] = { ...this.editingDict, enKeywords: keys };
+                        }
+                    } else {
+                        this.dictionary.push({
+                            ...this.editingDict,
+                            id: 'dict_' + Date.now(),
+                            enKeywords: keys
+                        });
+                    }
+
+                    // Save to browser localStorage and auto-rematch items
+                    this.saveDictionaryToStorage();
+                    this.showAddDictModal = false;
+                    this.autoRematch();
+                },
+
+                deleteDictItem(id) {
+                    if (confirm('確定要刪除此詞庫項目嗎？')) {
+                        this.dictionary = this.dictionary.filter(d => d.id !== id);
+                        this.saveDictionaryToStorage();
+                    }
+                },
+
+                resetDictionary() {
+                    if (confirm('確定重設為預設字典庫嗎？所有自訂詞條將被覆蓋。')) {
+                        this.dictionary = [...INITIAL_DICTIONARY];
+                        this.saveDictionaryToStorage();
+                        this.autoRematch();
+                    }
+                },
+
+                printForm() {
+                    window.print();
+                },
+
+                exportWord() {
+                    // Create formatted Word-compatible HTML Document
+                    const content = document.querySelector('.print-container').innerHTML;
+                    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head><title>生產通知單</title><style>
+                    table { border-collapse: collapse; width: 100%; }
+                    td, th { border: 1px solid black; padding: 5px; font-size: 11pt; }
+                    .font-bold { font-weight: bold; }
+                    .bg-slate-800 { background-color: #1e293b; color: white; }
+                    </style></head><body>`;
+                    const footer = "</body></html>";
+                    const html = header + content + footer;
+
+                    const blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${this.projectInfo.modOrderNo || '生產通知單'}.doc`;
+                    a.click();
+                },
+
+                exportJson() {
+                    const data = {
+                        projectInfo: this.projectInfo,
+                        parsedItems: this.parsedItems
+                    };
+                    const jsonStr = JSON.stringify(data, null, 2);
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${this.projectInfo.modOrderNo}_Data.json`;
+                    a.click();
+                }
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
