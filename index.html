@@ -374,20 +374,20 @@
                     </div>
                     <table class="w-full table-form mb-4 border-collapse">
                         <tr>
-                            <td class="font-bold w-28 bg-slate-50">合同 / 訂單編號</td>
-                            <td class="w-44">{{ projectInfo.contractNo }}</td>
-                            <td class="font-bold w-24 bg-slate-50">顧客名稱</td>
-                            <td>{{ projectInfo.customerName }}</td>
-                            <td class="font-bold w-20 bg-slate-50">項目名稱</td>
-                            <td class="w-32">{{ projectInfo.projectName }}</td>
+                            <td class="font-bold w-28 bg-slate-50 align-middle">合同 / 訂單編號</td>
+                            <td class="w-36 align-middle font-mono">{{ projectInfo.contractNo }}</td>
+                            <td class="font-bold w-20 bg-slate-50 align-middle">顧客名稱</td>
+                            <td class="w-48 align-middle">{{ projectInfo.customerName }}</td>
+                            <td class="font-bold w-24 bg-slate-50 align-middle">項目名稱 / 收貨人</td>
+                            <td class="align-middle">{{ projectInfo.projectName }}</td>
                         </tr>
                         <tr>
-                            <td class="font-bold bg-slate-50">車型 / 品牌</td>
-                            <td>{{ projectInfo.vehicleModel }}</td>
-                            <td class="font-bold bg-slate-50">車架號 (VIN)</td>
-                            <td class="font-mono">{{ projectInfo.vin }}</td>
-                            <td class="font-bold bg-slate-50">預計交付日期</td>
-                            <td>{{ projectInfo.expectedDelivery }}</td>
+                            <td class="font-bold bg-slate-50 align-middle">車型 / 品牌</td>
+                            <td class="align-middle">{{ projectInfo.vehicleModel }}</td>
+                            <td class="font-bold bg-slate-50 align-middle">車架號 (VIN)</td>
+                            <td class="font-mono align-middle">{{ projectInfo.vin }}</td>
+                            <td class="font-bold bg-slate-50 align-middle">預計交付日期</td>
+                            <td class="align-middle">{{ projectInfo.expectedDelivery }}</td>
                         </tr>
                     </table>
 
@@ -732,13 +732,13 @@ Supply and install 1 set of anti-theft system
                     
                     // Project Info Header
                     projectInfo: {
-                        modOrderNo: 'NTL-MOD-26-004',
-                        contractNo: 'FSDS/T/6/24/CSD',
-                        customerName: 'Universal Cars Limited',
-                        projectName: 'TWGHs Lok Kwan',
-                        vehicleModel: 'Mit. Fuso / BE741G',
+                        modOrderNo: 'NTL-MOD-26-029',
+                        contractNo: 'NTL-Q-09029-2026',
+                        customerName: 'Crown Motors Limited',
+                        projectName: 'Shining Social Services (Ref: SSS-2026-0110)',
+                        vehicleModel: 'GDB70R / GDB110R',
                         vin: 'BE741G-M10324',
-                        orderDate: '2026-01-10',
+                        orderDate: new Date().toISOString().split('T')[0],
                         expectedDelivery: '2026 / 4',
                         drawingNo: '20251210(1)',
                         wiringNo: 'C_C_25_2C',
@@ -816,27 +816,35 @@ Supply and install 1 set of anti-theft system
                         }
                     }
 
-                    // Date
+                    // Auto set order date to TODAY (or extracted date if valid)
+                    const todayStr = new Date().toISOString().split('T')[0];
                     const dateMatch = fullText.match(/Date\s*:\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})/i);
                     if (dateMatch) {
                         try {
                             const d = new Date(dateMatch[1]);
                             if (!isNaN(d.getTime())) {
                                 this.projectInfo.orderDate = d.toISOString().split('T')[0];
+                            } else {
+                                this.projectInfo.orderDate = todayStr;
                             }
-                        } catch(e){}
+                        } catch(e) {
+                            this.projectInfo.orderDate = todayStr;
+                        }
+                    } else {
+                        this.projectInfo.orderDate = todayStr;
                     }
 
-                    // Customer Name (To: Crown Motors Limited)
+                    // Customer Name (To: Crown Motors Limited) - Clean up "Our ref", "Attn", etc.
                     const customerMatch = fullText.match(/To\s*:\s*([^\n\r]+)/i);
                     if (customerMatch) {
-                        this.projectInfo.customerName = customerMatch[1].trim();
+                        let cust = customerMatch[1].replace(/Our ref\s*:.*/i, '').replace(/Attn\s*:.*/i, '').replace(/Tel\s*:.*/i, '').trim();
+                        this.projectInfo.customerName = cust;
                     }
 
                     // Project / Re: (Quotation of one unit 14-seater ... for Shining Social Services)
                     const reMatch = fullText.match(/Re\s*:\s*([^\n\r]+)/i);
                     if (reMatch) {
-                        this.projectInfo.projectName = reMatch[1].trim();
+                        this.projectInfo.projectName = reMatch[1].replace(/^Quotation of\s+/i, '').trim();
                     }
 
                     // Vehicle Model (Modifications of GDB70R/GDB110R or Mit. Fuso)
