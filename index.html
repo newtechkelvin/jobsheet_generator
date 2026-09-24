@@ -646,26 +646,33 @@
         // Default Dictionary based on sample quotation & production order
         const INITIAL_DICTIONARY = [
             { id: 'd1', enKeywords: ['passenger seats', 'high back', 'reen seat'], zhName: '安裝高背 PVC 乘客座位 (連三點式安全帶及走廊位可摺手枕)', category: '車身裝嵌', defaultModel: 'Reen seat', defaultQty: '11個' },
-            { id: 'd2', enKeywords: ['wheelchair lift', 'wako', 'under-chassis'], zhName: '安裝輪椅升降台 (底盤下自動升降及副電源)', category: '車身裝嵌', defaultModel: 'WAKO VK132', defaultQty: '1台' },
-            { id: 'd3', enKeywords: ['innotrax', 'flooring', 'linoleum', '地台路軌'], zhName: '安裝地台路軌 (鎖輪椅用)', category: '車身裝嵌', defaultModel: 'Innotrax', defaultQty: '1套' },
+            { id: 'd2', enKeywords: ['wheelchair lift', 'wako', 'under-chassis'], zhName: '安裝輪椅升降台 (底盤下自動升降及副電源)', category: '車身裝嵌', defaultModel: 'WAKO VK131', defaultQty: '1台' },
+            { id: 'd3', enKeywords: ['innotrax', 'flooring', 'linoleum', '地台路軌', 'reinforced flooring'], zhName: '安裝地台路軌及防滑地膠 (鎖輪椅用)', category: '車身裝嵌', defaultModel: 'Innotrax', defaultQty: '1套' },
             { id: 'd4', enKeywords: ['non-slip', '防滑地膠'], zhName: '安裝防滑地膠', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
             { id: 'd5', enKeywords: ['rear door hinges', 'door retainers', '尾門較'], zhName: '改裝尾門較及加裝尾門扣', category: '車身裝嵌', defaultModel: '尾門扣', defaultQty: '1套' },
             { id: 'd6', enKeywords: ['half step', 'side door', '半腳踏'], zhName: '中門半腳踏', category: '車身裝嵌', defaultModel: '-', defaultQty: '1個' },
-            { id: 'd7', enKeywords: ['handrails', 'cushion tube', '不銹鋼扶手'], zhName: '安裝中門、尾門入口及兩側車窗連軟墊的不銹鋼扶手', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd7', enKeywords: ['handrails', 'cushion tube', '不銹鋼扶手'], zhName: '安裝車窗及通道不銹鋼扶手 (連軟墊)', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
             { id: 'd8', enKeywords: ['mudguards', '擋泥板'], zhName: '安裝纖維轆輁 / 擋泥板', category: '車身裝嵌', defaultModel: 'FW_C_01', defaultQty: '1套' },
             { id: 'd9', enKeywords: ['indicator lights', 'light box', '乘降中', '升降中'], zhName: '安裝"升降中"燈箱連尾射燈及左右車頂角LED訊號燈', category: '電器', defaultModel: 'LB_A_01', defaultQty: '1套' },
-            { id: 'd10', enKeywords: ['cctv', 'parking sensor', 'rear view', '泊車雷達'], zhName: '安裝倒後泊車雷達及CCTV', category: '電器', defaultModel: 'CCTV_6inch', defaultQty: '1套' },
+            { id: 'd10', enKeywords: ['cctv', 'parking sensor', 'rear view', '泊車雷達', 'parking sensors'], zhName: '安裝倒後泊車雷達及CCTV', category: '電器', defaultModel: 'CCTV_6inch', defaultQty: '1套' },
             { id: 'd11', enKeywords: ['auto step', 'thule', '伸縮踏板'], zhName: '安裝電動伸縮踏板', category: '電器', defaultModel: 'THULE 700ALU', defaultQty: '1套' },
-            { id: 'd12', enKeywords: ['anti-theft', '防盜'], zhName: '安裝防盜系統', category: '電器', defaultModel: 'SECURITY_01', defaultQty: '1套' },
+            { id: 'd12', enKeywords: ['anti-theft', '防盜', 'security system'], zhName: '安裝防盜系統', category: '電器', defaultModel: 'SECURITY_01', defaultQty: '1套' },
             { id: 'd13', enKeywords: ['door not properly closed', 'warning signal'], zhName: '車門未關緊警告訊號裝置', category: '電器', defaultModel: 'WARN_01', defaultQty: '1套' },
-            { id: 'd14', enKeywords: ['webbing securement', '4-point', '輪椅鎖扣'], zhName: '提供輪椅鎖扣及安全帶 (4點式)', category: '其他', defaultModel: 'NMI WTORS', defaultQty: '4套' },
-            { id: 'd15', enKeywords: ['reflective marking', 'reflective', '反光牌'], zhName: '安裝尾門反光牌', category: '其他', defaultModel: 'RP_01A', defaultQty: '1套' },
+            { id: 'd14', enKeywords: ['webbing securement', '4-point', '輪椅鎖扣'], zhName: '提供輪椅鎖扣及安全帶 (4點式)', category: '其他', defaultModel: 'NMI WTORS', defaultQty: '3套' },
+            { id: 'd15', enKeywords: ['reflective marking', 'reflective', '反光牌', 'reflective strips', 'aluminum plate'], zhName: '安裝尾門紅黃反光鋁板 / 反光牌', category: '其他', defaultModel: 'RP_01A', defaultQty: '1套' },
             { id: 'd16', enKeywords: ['fluorescence strips', 'caution', '螢光條'], zhName: '地台加裝黃/黑警示螢光條', category: '其他', defaultModel: '-', defaultQty: '1套' },
             { id: 'd17', enKeywords: ['pvc cover', '座位保護套'], zhName: '乘客座位透明 PVC 保護套', category: '其他', defaultModel: '-', defaultQty: '11套' },
             { id: 'd18', enKeywords: ['under mirror', '下照後鏡'], zhName: '安裝車底下照後鏡', category: '其他', defaultModel: '-', defaultQty: '1個' },
             { id: 'd19', enKeywords: ['fish-eye', '魚眼廣角鏡'], zhName: '安裝魚眼廣角鏡', category: '其他', defaultModel: '-', defaultQty: '1個' },
-            { id: 'd20', enKeywords: ['logo', 'lettering', '機構標識'], zhName: '油上機構標識及字樣', category: '其他', defaultModel: '-', defaultQty: '1套' },
-            { id: 'd21', enKeywords: ['rust proofing', '防銹處理'], zhName: '提供防銹處理', category: '其他', defaultModel: '-', defaultQty: '1套' }
+            { id: 'd20', enKeywords: ['logo', 'lettering', '機構標識', 'body color'], zhName: '噴塗車身顏色、機構標識及字樣', category: '其他', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd21', enKeywords: ['rust proofing', '防銹處理', 'rustproofing'], zhName: '提供防銹處理', category: '其他', defaultModel: '-', defaultQty: '1套' },
+            // New Items for NTL-Q-09029-2026
+            { id: 'd22', enKeywords: ['infrared device', 'obstacles', 'distance between'], zhName: '安裝車尾倒車紅外線防撞感應警示裝置', category: '電器', defaultModel: 'INFRA_01', defaultQty: '1套' },
+            { id: 'd23', enKeywords: ['electric fan', "driver's cab"], zhName: '安裝駕駛室風扇', category: '電器', defaultModel: 'FAN_01', defaultQty: '1個' },
+            { id: 'd24', enKeywords: ['railing and curtains', 'curtains'], zhName: '安裝兩側車窗窗簾及軌道', category: '車身裝嵌', defaultModel: 'CURTAIN_01', defaultQty: '1套' },
+            { id: 'd25', enKeywords: ['ta approval', 'type approval'], zhName: '安排車輛類型評核 (TA Approval) 審批手續及驗車', category: '其他', defaultModel: 'TA_APP', defaultQty: '1項' },
+            { id: 'd26', enKeywords: ['half step and auto step', 'middle entrance'], zhName: '中門安裝半腳踏及電動伸縮踏板', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' },
+            { id: 'd27', enKeywords: ['handrails at the middle entrance'], zhName: '安裝中門入口不銹鋼扶手', category: '車身裝嵌', defaultModel: '-', defaultQty: '1套' }
         ];
 
         // Sample raw quotation text matching NTL-Q-06028-2024
@@ -763,7 +770,7 @@ Supply and install 1 set of anti-theft system
 
                 // Extract quantity hint from text
                 extractQtyHint(text) {
-                    const numMatch = text.match(/(\d+)\(?[a-zA-Z]*\)?\s*(units|sets|set|pcs|unit|張|台|個|套)?/i);
+                    const numMatch = text.match(/(\d+)\s*\(?[a-zA-Z]*\)?\s*(units|sets|set|pcs|unit|張|台|個|套)?/i);
                     if (numMatch) {
                         const num = numMatch[1];
                         if (text.toLowerCase().includes('seat') || text.toLowerCase().includes('座位')) return `${num}個`;
@@ -773,19 +780,125 @@ Supply and install 1 set of anti-theft system
                     return '1套';
                 },
 
+                // Extract Metadata (Customer, Date, Ref, Model, Project Name) from PDF / Text
+                extractMetadataFromText(fullText) {
+                    // Quotation Ref No. (e.g., NTL-Q-09029-2026 or NTL-Q-06028-2024)
+                    const refMatch = fullText.match(/Our ref\s*:\s*(NTL-Q-[\w-]+)/i) || fullText.match(/(NTL-Q-\d+-\d+)/i);
+                    if (refMatch) {
+                        this.projectInfo.contractNo = refMatch[1];
+                        // Auto-generate Mod Order No from Quotation No (e.g., NTL-MOD-26-029)
+                        const parts = refMatch[1].split('-');
+                        if (parts.length >= 4) {
+                            const numStr = parts[2].slice(-3);
+                            const yearShort = parts[3].slice(-2);
+                            this.projectInfo.modOrderNo = `NTL-MOD-${yearShort}-${numStr}`;
+                        }
+                    }
+
+                    // Date
+                    const dateMatch = fullText.match(/Date\s*:\s*([0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2})/i);
+                    if (dateMatch) {
+                        try {
+                            const d = new Date(dateMatch[1]);
+                            if (!isNaN(d.getTime())) {
+                                this.projectInfo.orderDate = d.toISOString().split('T')[0];
+                            }
+                        } catch(e){}
+                    }
+
+                    // Customer Name (To: Crown Motors Limited)
+                    const customerMatch = fullText.match(/To\s*:\s*([^\n\r]+)/i);
+                    if (customerMatch) {
+                        this.projectInfo.customerName = customerMatch[1].trim();
+                    }
+
+                    // Project / Re: (Quotation of one unit 14-seater ... for Shining Social Services)
+                    const reMatch = fullText.match(/Re\s*:\s*([^\n\r]+)/i);
+                    if (reMatch) {
+                        this.projectInfo.projectName = reMatch[1].trim();
+                    }
+
+                    // Vehicle Model (Modifications of GDB70R/GDB110R or Mit. Fuso)
+                    const modelMatch = fullText.match(/Modifications of\s+([^\n\r]+)/i) || fullText.match(/Model\s*:\s*([^\n\r]+)/i);
+                    if (modelMatch) {
+                        this.projectInfo.vehicleModel = modelMatch[1].replace(/with following items:?/i, '').trim();
+                    }
+                },
+
                 parseQuotationText(text) {
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-                    this.parsedItems = lines.map(line => {
-                        const match = this.findBestMatch(line);
-                        return {
-                            rawEn: line,
-                            selectedDictId: match ? match.id : '',
-                            zhName: match ? match.zhName : line,
-                            category: match ? match.category : '車身裝嵌',
-                            model: match ? match.defaultModel : '-',
-                            qty: match ? match.defaultQty : this.extractQtyHint(line)
-                        };
-                    });
+                    // Extract Header Metadata
+                    this.extractMetadataFromText(text);
+
+                    // Split lines and clean noise (Header, Remarks, Footer)
+                    const rawLines = text.split('\n');
+                    const cleanedLines = [];
+                    let currentBuffer = "";
+
+                    for (let line of rawLines) {
+                        line = line.trim();
+                        if (!line) continue;
+
+                        // Filter out headers/footers/remarks
+                        if (line.match(/^Room\s+[A-Z0-9]/i) || 
+                            line.match(/^Tel\s*:/i) || 
+                            line.match(/^Fax\s*:/i) || 
+                            line.match(/^E-mail\s*:/i) || 
+                            line.match(/^Remarks\s*:/i) || 
+                            line.match(/^[a-f]\.\s+Any additional/i) || 
+                            line.match(/^[a-f]\.\s+/i) || 
+                            line.match(/^Total Amount\s*:/i) || 
+                            line.match(/^Yours sincerely/i) || 
+                            line.match(/^Confirmed\s+(&|and)\s+Accepted/i) ||
+                            line.match(/^NEW TECH MOTOR ENGINEERING/i) ||
+                            line.match(/^Page\s+\d+/i) ||
+                            line.match(/^Our ref\s*:/i) ||
+                            line.match(/^Date\s*:/i) ||
+                            line.match(/^Attn\s*:/i) ||
+                            line.match(/^Re\s*:/i) ||
+                            line.match(/^No\.\s+Description/i) ||
+                            line.match(/^Modifications of/i)) {
+                            
+                            if (currentBuffer) {
+                                cleanedLines.push(currentBuffer);
+                                currentBuffer = "";
+                            }
+                            continue;
+                        }
+
+                        // Check if line starts with a new numbered item (e.g. "1.", "2.", "15.")
+                        const numStartMatch = line.match(/^(\d+)[\.\)]\s*(.*)/);
+                        if (numStartMatch) {
+                            if (currentBuffer) {
+                                cleanedLines.push(currentBuffer);
+                            }
+                            currentBuffer = numStartMatch[2]; // remove "1. " prefix
+                        } else {
+                            if (currentBuffer) {
+                                currentBuffer += " " + line;
+                            } else if (line.length > 10 && !line.includes("HK$")) {
+                                currentBuffer = line;
+                            }
+                        }
+                    }
+
+                    if (currentBuffer) {
+                        cleanedLines.push(currentBuffer);
+                    }
+
+                    // Map to parsed items
+                    this.parsedItems = cleanedLines
+                        .filter(l => l.length > 5 && !l.toLowerCase().startsWith('unit price') && !l.toLowerCase().startsWith('total amount'))
+                        .map(line => {
+                            const match = this.findBestMatch(line);
+                            return {
+                                rawEn: line,
+                                selectedDictId: match ? match.id : '',
+                                zhName: match ? match.zhName : line,
+                                category: match ? match.category : '車身裝嵌',
+                                model: match ? match.defaultModel : '-',
+                                qty: match ? match.defaultQty : this.extractQtyHint(line)
+                            };
+                        });
                 },
 
                 loadSampleQuotation() {
@@ -869,15 +982,33 @@ Supply and install 1 set of anti-theft system
                                 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
                                 const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
                                 let extractedText = '';
+                                
+                                // Iterate pages and preserve line breaks based on Y positions
                                 for (let i = 1; i <= pdf.numPages; i++) {
                                     const page = await pdf.getPage(i);
                                     const textContent = await page.getTextContent();
-                                    const pageText = textContent.items.map(item => item.str).join(' ');
+                                    let lastY = null;
+                                    let pageText = '';
+
+                                    for (const item of textContent.items) {
+                                        if (!item.str) continue;
+                                        const currentY = item.transform ? item.transform[5] : null;
+
+                                        // If Y coordinate drops significantly, it's a new line
+                                        if (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 6) {
+                                            pageText += '\n';
+                                        } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
+                                            pageText += ' ';
+                                        }
+                                        pageText += item.str;
+                                        if (currentY !== null) lastY = currentY;
+                                    }
                                     extractedText += pageText + '\n';
                                 }
+                                
                                 this.parseQuotationText(extractedText);
                             } catch (err) {
-                                alert('PDF 解析失敗，請確認檔案是否有保護或文字層。');
+                                alert('PDF 解析失敗，請確認檔案是否有密碼保護。');
                             }
                         };
                         reader.readAsArrayBuffer(file);
