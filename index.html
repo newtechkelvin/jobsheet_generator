@@ -897,8 +897,13 @@
                 const subKeywords = item.keyword.split(/[,;/]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
                 if (subKeywords.length === 0) continue;
 
-                // 檢查是否所有關鍵字都同時出現在這行英文原文中
-                const allMatched = subKeywords.every(kw => cleanEn.includes(kw));
+                // 檢查是否所有關鍵字都同時出現在這行英文原文中 (包含單複數支援)
+                const allMatched = subKeywords.every(kw => {
+                    if (cleanEn.includes(kw)) return true;
+                    if (kw.endsWith('s') && cleanEn.includes(kw.slice(0, -1))) return true;
+                    if (!kw.endsWith('s') && cleanEn.includes(kw + 's')) return true;
+                    return false;
+                });
 
                 if (allMatched) {
                     // 計算精準度得分：關鍵字數量越多、長度越長，分數越高
@@ -1143,7 +1148,7 @@
                 document.getElementById('meta-preparer').value = "Vincy";
             }
 
-            // 2. 改裝項目精準提取引擎 (優先採編號模式 1., 2., ... 20. 匹配)
+            // 2. 改裝項目精準提取引擎 (採順序編號模式 1., 2., ... 20. 嚴謹解析)
             const numberedRegex = /(?:^|\s)(\d{1,2})\.\s+([\s\S]+?)(?=(?:\s+\d{1,2}\.\s+)|Remarks:|Total Amount:|Yours sincerely|Confirmed|Authorized Chop|Room A|Room C|$)/gi;
             let match;
             let numberedItems = [];
