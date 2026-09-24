@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>車輛改裝 / 生產計劃通知單 - 智能對照與自動填報系統</title>
+    <title>車輛改裝通知單 (Job Sheet) - 智能對照與自動填報系統</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Vue 3 CDN -->
@@ -91,7 +91,7 @@
                         <i class="fa-solid fa-truck-gear"></i>
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold tracking-wide">車輛改裝 / 生產計劃通知單轉換系統</h1>
+                        <h1 class="text-lg font-bold tracking-wide">車輛改裝通知單 (Job Sheet)製作系統</h1>
                         <p class="text-xs text-brand-100">新力機械有限公司 (New Tech Motor Engineering Ltd.)</p>
                     </div>
                 </div>
@@ -189,11 +189,15 @@
                             <input v-model="projectInfo.wiringNo" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
                         </div>
                         <div>
+                            <label class="block font-medium text-slate-700 mb-1">填表人 (Preparer)</label>
+                            <input v-model="projectInfo.preparer" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
+                        </div>
+                        <div>
                             <label class="block font-medium text-slate-700 mb-1">填表單位 (Department)</label>
                             <input v-model="projectInfo.department" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
                         </div>
                         <div>
-                            <label class="block font-medium text-slate-700 mb-1">表單編號 (Form Code)</label>
+                            <label class="block font-medium text-slate-700 mb-1">表單版本 (Form Code)</label>
                             <input v-model="projectInfo.formCode" type="text" class="w-full p-2 border rounded-md focus:ring-1 focus:ring-brand-500 bg-white">
                         </div>
                     </div>
@@ -349,22 +353,20 @@
                     
                     <!-- Header Title Bar -->
                     <div class="border-2 border-black p-2 mb-2 text-center relative">
-                        <h2 class="text-xl font-bold tracking-widest">車輛改裝 / 生產計劃通知單</h2>
+                        <h2 class="text-xl font-bold tracking-widest">車輛改裝通知單 (Job Sheet)</h2>
                     </div>
 
-                    <!-- Top Info Grid -->
+                    <!-- Top Info Grid (Single row, 8 columns with light blue headers) -->
                     <table class="w-full table-form mb-4 border-collapse">
                         <tr>
-                            <td class="font-bold w-24 bg-slate-100">改裝單號：</td>
-                            <td class="w-48 font-mono">{{ projectInfo.modOrderNo }}</td>
-                            <td class="font-bold w-24 bg-slate-100">表單編號：</td>
+                            <td class="font-bold w-16 text-center bg-[#e0effe]">單號</td>
+                            <td class="font-mono w-1/4">{{ projectInfo.modOrderNo }}</td>
+                            <td class="font-bold w-16 text-center bg-[#e0effe]">日期</td>
+                            <td class="font-mono w-1/5">{{ projectInfo.orderDate }}</td>
+                            <td class="font-bold w-20 text-center bg-[#e0effe]">填表人</td>
+                            <td class="w-1/6">{{ projectInfo.preparer }}</td>
+                            <td class="font-bold w-16 text-center bg-[#e0effe]">版本</td>
                             <td class="font-mono">{{ projectInfo.formCode }}</td>
-                        </tr>
-                        <tr>
-                            <td class="font-bold bg-slate-100">下單日期：</td>
-                            <td>{{ projectInfo.orderDate }}</td>
-                            <td class="font-bold bg-slate-100">填表單位：</td>
-                            <td>{{ projectInfo.department }}</td>
                         </tr>
                     </table>
 
@@ -743,6 +745,7 @@ Supply and install 1 set of anti-theft system
                         drawingNo: '20251210(1)',
                         wiringNo: 'C_C_25_2C',
                         department: '項目部',
+                        preparer: 'Vincy',
                         formCode: 'NTL-MOD-002A (Rev. A/0)'
                     },
 
@@ -841,10 +844,21 @@ Supply and install 1 set of anti-theft system
                         this.projectInfo.customerName = cust;
                     }
 
-                    // Project / Re: (Quotation of one unit 14-seater ... for Shining Social Services)
+                    // Extract Preparer if Vincy Chiu present
+                    if (fullText.includes("Vincy")) {
+                        this.projectInfo.preparer = "Vincy";
+                    }
+
+                    // Project / Re: Extract text after "for" (e.g. for Shining Social Services (Ref: SSS-2026-0110))
                     const reMatch = fullText.match(/Re\s*:\s*([^\n\r]+)/i);
                     if (reMatch) {
-                        this.projectInfo.projectName = reMatch[1].replace(/^Quotation of\s+/i, '').trim();
+                        const reText = reMatch[1].trim();
+                        const forMatch = reText.match(/\bfor\s+(.+)$/i);
+                        if (forMatch && forMatch[1]) {
+                            this.projectInfo.projectName = forMatch[1].trim();
+                        } else {
+                            this.projectInfo.projectName = reText.replace(/^Quotation of\s+/i, '').trim();
+                        }
                     }
 
                     // Vehicle Model (Modifications of GDB70R/GDB110R or Mit. Fuso)
