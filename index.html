@@ -734,18 +734,18 @@ Supply and install 1 set of anti-theft system
                     
                     // Project Info Header
                     projectInfo: {
-                        modOrderNo: 'NTL-MOD-26-029',
-                        contractNo: 'NTL-Q-09029-2026',
-                        customerName: 'Crown Motors Limited',
-                        projectName: 'Shining Social Services (Ref: SSS-2026-0110)',
-                        vehicleModel: 'GDB70R / GDB110R',
-                        vin: 'BE741G-M10324',
+                        modOrderNo: '',
+                        contractNo: '',
+                        customerName: '',
+                        projectName: '',
+                        vehicleModel: '',
+                        vin: '',
                         orderDate: new Date().toISOString().split('T')[0],
                         expectedDelivery: '2026 / 4',
                         drawingNo: '20251210(1)',
                         wiringNo: 'C_C_25_2C',
-                        department: '項目部',
-                        preparer: 'Vincy',
+                        department: '',
+                        preparer: '',
                         formCode: 'NTL-MOD-002A (Rev. A/0)'
                     },
 
@@ -767,8 +767,7 @@ Supply and install 1 set of anti-theft system
                 }
             },
             mounted() {
-                // Initialize with sample items
-                this.loadSampleQuotation();
+                // Initialize clean form state as requested
             },
             methods: {
                 // Match raw English string with dictionary terms based on key occurrences
