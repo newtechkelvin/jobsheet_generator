@@ -987,39 +987,56 @@
             }
         }
 
-        function matchDictionary(enText) {
-            const cleanEn = enText.toLowerCase();
-            let bestMatch = null;
-            let highestScore = -1;
+// 升級版詞庫比對函數：支援 OR (用逗號/斜線分隔) 與 AND (用加號分隔)
+function matchDictionary(enText) {
+    const cleanEn = enText.toLowerCase();
+    let bestMatch = null;
+    let highestScore = -1;
 
-            for (let item of dictionary) {
-                if (!item.keyword) continue;
+    for (let item of dictionary) {
+        if (!item.keyword) continue;
 
-                const subKeywords = item.keyword.split(/[,;/]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
-                if (subKeywords.length === 0) continue;
+        // 1. 以逗號、斜線或豎線拆分成「多組 OR 條件」
+        const orGroups = item.keyword.split(/[,/|]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
+        if (orGroups.length === 0) continue;
 
-                const allMatched = subKeywords.every(kw => {
-                    if (cleanEn.includes(kw)) return true;
-                    if (kw.endsWith('s') && cleanEn.includes(kw.slice(0, -1))) return true;
-                    if (!kw.endsWith('s') && cleanEn.includes(kw + 's')) return true;
-                    return false;
-                });
+        let isMatch = false;
+        let currentGroupScore = 0;
 
-                if (allMatched) {
-                    const score = subKeywords.reduce((sum, kw) => sum + kw.length, 0) + (subKeywords.length * 20);
-                    if (score > highestScore) {
-                        highestScore = score;
-                        bestMatch = item;
-                    }
-                }
+        // 2. 只要有一組 OR 條件成立即可
+        for (let group of orGroups) {
+            // 每組內如果含有 '+'，則代表必須同時成立 (AND)
+            const andSubKeywords = group.split('+').map(k => k.trim()).filter(k => k.length > 0);
+            
+            const groupMatched = andSubKeywords.every(kw => {
+                if (cleanEn.includes(kw)) return true;
+                if (kw.endsWith('s') && cleanEn.includes(kw.slice(0, -1))) return true;
+                if (!kw.endsWith('s') && cleanEn.includes(kw + 's')) return true;
+                return false;
+            });
+
+            if (groupMatched) {
+                isMatch = true;
+                currentGroupScore = andSubKeywords.reduce((sum, kw) => sum + kw.length, 0);
+                break; // 只要匹配到一組 OR 即可
             }
-
-            if (bestMatch) {
-                return bestMatch;
-            }
-
-            return { zh: enText, category: "車身裝嵌", model: "-" };
         }
+
+        if (isMatch) {
+            // 優先挑選匹配長度最長的詞庫項目
+            if (currentGroupScore > highestScore) {
+                highestScore = currentGroupScore;
+                bestMatch = item;
+            }
+        }
+    }
+
+    if (bestMatch) {
+        return bestMatch;
+    }
+
+    return { zh: enText, category: "車身裝嵌", model: "-" };
+}
 
         function extractQty(enText) {
             const lower = enText.toLowerCase();
