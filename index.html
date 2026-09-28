@@ -38,9 +38,31 @@
     <style>
         @media print {
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
-            .print-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-            @page { size: A4 portrait; margin: 10mm; }
+            html, body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            body > *:not(#step2-page) {
+                display: none !important;
+            }
+            #step2-page {
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .print-container {
+                box-shadow: none !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+            }
+            @page { size: A4 portrait; margin: 8mm; }
         }
         
         .preview-table {
@@ -54,6 +76,20 @@
             padding: 4px 6px;
             vertical-align: middle;
         }
+        
+        /* 放大第 2 部分字體 20% (由原本 11px 放大至約 13.2px) */
+        .preview-table-section2 {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 13.2px !important;
+            color: #000;
+        }
+        .preview-table-section2 th, .preview-table-section2 td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+            vertical-align: middle;
+        }
+
         .preview-header-bg {
             background-color: #1e293b;
             color: white;
@@ -170,12 +206,16 @@
                         <input type="text" id="meta-mod-no" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">合同 / 訂單編號 (Contract No.)</label>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">合同 / 報價單編號 (Contract / Quotation No.)</label>
                         <input type="text" id="meta-contract-no" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">顧客名稱 (Customer)</label>
-                        <input type="text" id="meta-customer" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-customer" list="customer-options" placeholder="選擇或輸入顧客..." class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <datalist id="customer-options">
+                            <option value="Crown Motor Limited"></option>
+                            <option value="Universal Cars Limited"></option>
+                        </datalist>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">項目名稱 (Project Name)</label>
@@ -183,10 +223,14 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">車型 / 品牌 (Model / Brand)</label>
-                        <input type="text" id="meta-model" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-model" list="model-options" placeholder="選擇或輸入車型..." class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <datalist id="model-options">
+                            <option value="Toyota Coaster"></option>
+                            <option value="Mit. Fuso Rosa"></option>
+                        </datalist>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">車架號 (VIN)</label>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">車架號 (VIN / Stock No.)</label>
                         <input type="text" id="meta-vin" value="" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
@@ -197,6 +241,21 @@
                         <label class="block text-xs font-semibold text-slate-600 mb-1">預計交付日期 (Delivery Date)</label>
                         <input type="text" id="meta-delivery" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
+
+                    <!-- 是否需要 TA (Type Approval) 設定 -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">是否需要 TA (Type Approval)</label>
+                        <select id="meta-need-ta" onchange="toggleTaNoInput()" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none font-semibold">
+                            <option value="是" selected>是</option>
+                            <option value="不是">不是</option>
+                            <option value="NA">NA</option>
+                        </select>
+                    </div>
+                    <div id="ta-no-container" class="hidden">
+                        <label class="block text-xs font-semibold text-amber-600 mb-1">TA no. (Type Approval 編號)</label>
+                        <input type="text" id="meta-ta-no" placeholder="請輸入 TA 編號..." class="w-full text-sm bg-amber-50 border border-amber-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-amber-500 outline-none font-mono">
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">改裝圖編號 (Drawing No.)</label>
                         <input type="text" id="meta-drawing-no" value="20251210(1)" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
@@ -211,7 +270,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">填表單位 (Department)</label>
-                        <input type="text" id="meta-dept" value="項目部" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="text" id="meta-dept" value="Project Team" class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">表單版本 (Form Code)</label>
@@ -302,8 +361,14 @@
             <!-- 通知單 A4 預覽畫布 -->
             <div class="bg-white p-8 rounded-xl shadow-md border border-slate-300 print-container max-w-4xl mx-auto">
                 
+                <!-- 公司 Header 抬頭 -->
+                <div class="text-center pb-2 mb-3 border-b-2 border-black">
+                    <h1 class="text-xl font-bold tracking-wide text-black">新力機械有限公司</h1>
+                    <p class="text-xs font-semibold text-slate-700">New Tech Motor Engineering Ltd.</p>
+                </div>
+
                 <!-- 大標題 -->
-                <div class="border-2 border-black p-2 text-center font-bold text-lg mb-3 tracking-wider">
+                <div class="border-2 border-black p-1.5 text-center font-bold text-base mb-3 tracking-wider bg-slate-50">
                     車輛改裝通知單 (Job Sheet)
                 </div>
 
@@ -321,18 +386,18 @@
                     </tr>
                 </table>
 
-                <!-- 一、車輛與客戶資訊 (緊湊矮化單行結構) -->
+                <!-- 一、車輛與客戶資訊 (包含新增的 Type Approval 橫列) -->
                 <div class="preview-header-bg px-2 py-1 text-xs mb-1">
                     一、車輛與客戶資訊
                 </div>
                 <table class="preview-table mb-3">
                     <tr>
-                        <td style="width: 13%; background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">合同 / 訂單編號</td>
+                        <td style="width: 14%; background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">合同 / 報價單編號</td>
                         <td style="width: 20%; padding: 3px 5px;" id="pv-contract-no"></td>
                         <td style="width: 11%; background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">顧客名稱</td>
                         <td style="width: 22%; padding: 3px 5px;" id="pv-customer"></td>
                         <td style="width: 11%; background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">項目名稱</td>
-                        <td style="width: 23%; padding: 3px 5px;" id="pv-project"></td>
+                        <td style="width: 22%; padding: 3px 5px;" id="pv-project"></td>
                     </tr>
                     <tr>
                         <td style="background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">車型 / 品牌</td>
@@ -342,24 +407,29 @@
                         <td style="background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">預計交付日期</td>
                         <td style="padding: 3px 5px;" id="pv-delivery"></td>
                     </tr>
+                    <!-- 新增 Type Approval 橫列 -->
+                    <tr>
+                        <td style="background-color: #f8fafc; font-weight: bold; white-space: nowrap; padding: 3px 5px;">Type Approval:</td>
+                        <td colspan="5" style="padding: 3px 5px; font-weight: bold;" id="pv-ta-display"></td>
+                    </tr>
                 </table>
 
-                <!-- 二、改裝項目與物料清單 -->
+                <!-- 二、改裝項目與物料清單 (字體已放大 20%、類別已收窄、完工檢驗已留白) -->
                 <div class="preview-header-bg px-2 py-1 text-xs mb-1 flex justify-between items-center">
                     <span>二、改裝項目與物料清單</span>
                     <span class="text-[10px] font-normal">改裝圖編號: <span id="pv-drawing-no"></span> | 接線圖編號: <span id="pv-wiring-no"></span></span>
                 </div>
                 
-                <table class="preview-table mb-4">
+                <table class="preview-table-section2 mb-4">
                     <thead>
                         <tr style="background-color: #f1f5f9; text-align: center;">
-                            <th style="width: 12%;">類別</th>
-                            <th style="width: 6%;">序號</th>
-                            <th style="width: 38%;">改裝項目</th>
-                            <th style="width: 16%;">型號 / 編號</th>
+                            <th style="width: 7%;">類別</th>
+                            <th style="width: 5%;">序號</th>
+                            <th style="width: 47%;">改裝項目</th>
+                            <th style="width: 17%;">型號 / 編號</th>
                             <th style="width: 8%;">數量</th>
-                            <th style="width: 9%;">主管核對</th>
-                            <th style="width: 11%;">完工檢驗</th>
+                            <th style="width: 8%;">主管核對</th>
+                            <th style="width: 8%;">完工檢驗</th>
                         </tr>
                     </thead>
                     <tbody id="pv-items-tbody">
@@ -403,7 +473,7 @@
                             <td style="width: 25%;">品質管理部</td>
                             <td style="width: 25%;">檢驗及類型評核部</td>
                         </tr>
-                        <tr style="height: 50px;">
+                        <tr style="height: 48px;">
                             <td class="text-left align-bottom text-slate-400 text-[10px]">簽署:<br>員工編號:</td>
                             <td class="text-left align-bottom text-slate-400 text-[10px]">簽署:<br>員工編號:</td>
                             <td class="text-left align-bottom text-slate-400 text-[10px]">簽署:<br>員工編號:</td>
@@ -564,6 +634,17 @@
             renderDictTable();
             updateDictCount();
         });
+
+        // 切換 TA no. 輸入框顯示狀態
+        function toggleTaNoInput() {
+            const needTa = document.getElementById('meta-need-ta').value;
+            const container = document.getElementById('ta-no-container');
+            if (needTa === '不是') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
 
         // 監聽 Ctrl + V 貼上截圖事件
         document.addEventListener('paste', async (event) => {
@@ -1057,43 +1138,41 @@
             renderMappingRows();
         }
 
-// 圖片 OCR 處理函數 (修正 DataCloneError)
-async function processImageOCR(imageFile) {
-    const loadingModal = document.getElementById('ocr-loading');
-    const statusText = document.getElementById('ocr-status');
-    const progressBar = document.getElementById('ocr-progress');
+        // 圖片 OCR 處理函數 (已修正 DataCloneError)
+        async function processImageOCR(imageFile) {
+            const loadingModal = document.getElementById('ocr-loading');
+            const statusText = document.getElementById('ocr-status');
+            const progressBar = document.getElementById('ocr-progress');
 
-    loadingModal.classList.remove('hidden');
-    progressBar.style.width = '0%';
+            loadingModal.classList.remove('hidden');
+            progressBar.style.width = '0%';
 
-    try {
-        // 1. 正確方式：在 createWorker 時傳入 logger
-        const worker = await Tesseract.createWorker('eng', 1, {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    const pct = Math.round(m.progress * 100);
-                    progressBar.style.width = `${pct}%`;
-                    statusText.textContent = `識別進度：${pct}%`;
-                }
+            try {
+                // 正確傳遞 logger 給 createWorker
+                const worker = await Tesseract.createWorker('eng', 1, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const pct = Math.round(m.progress * 100);
+                            progressBar.style.width = `${pct}%`;
+                            statusText.textContent = `識別進度：${pct}%`;
+                        }
+                    }
+                });
+
+                const ret = await worker.recognize(imageFile);
+                await worker.terminate();
+
+                const rawLines = ret.data.text.split('\n').filter(line => line.trim().length > 0);
+                parseQuotationLines(rawLines, ret.data.text);
+                showToast("截圖辨識完成！已自動帶入改裝項目。");
+
+            } catch (err) {
+                showToast("OCR 文字辨識失敗，請確認圖片清晰度！", true);
+                console.error("OCR Error:", err);
+            } finally {
+                loadingModal.classList.add('hidden');
             }
-        });
-
-        // 2. 執行辨識 (不要在 recognize 內傳入 logger 函數)
-        const ret = await worker.recognize(imageFile);
-
-        await worker.terminate();
-
-        const rawLines = ret.data.text.split('\n').filter(line => line.trim().length > 0);
-        parseQuotationLines(rawLines, ret.data.text);
-        showToast("截圖辨識完成！已自動帶入改裝項目。");
-
-    } catch (err) {
-        showToast("OCR 文字辨識失敗，請確認圖片清晰度！", true);
-        console.error("OCR Error:", err);
-    } finally {
-        loadingModal.classList.add('hidden');
-    }
-}
+        }
 
         async function handleFileUpload(event) {
             const file = event.target.files[0];
@@ -1275,6 +1354,19 @@ async function processImageOCR(imageFile) {
             document.getElementById('pv-vin').textContent = document.getElementById('meta-vin').value;
             document.getElementById('pv-delivery').textContent = document.getElementById('meta-delivery').value;
 
+            // 渲染 Type Approval 邏輯
+            const needTa = document.getElementById('meta-need-ta').value;
+            const taNo = document.getElementById('meta-ta-no').value.trim();
+            const taDisplayTd = document.getElementById('pv-ta-display');
+
+            if (needTa === '是') {
+                taDisplayTd.innerHTML = `<span style="color: #dc2626;">新 TA 車輛 ; 請記錄預埋件位置</span>`;
+            } else if (needTa === '不是') {
+                taDisplayTd.innerHTML = `Pre-reg 車輛 ; 請根據 (${taNo || '未填寫 TA no.'}) 的圖則改裝`;
+            } else {
+                taDisplayTd.innerHTML = `N/A`;
+            }
+
             document.getElementById('pv-drawing-no').textContent = document.getElementById('meta-drawing-no').value;
             document.getElementById('pv-wiring-no').textContent = document.getElementById('meta-wiring-no').value;
 
@@ -1299,7 +1391,7 @@ async function processImageOCR(imageFile) {
                             <td class="text-center">${item.model}</td>
                             <td class="text-center">${item.qty}</td>
                             <td class="text-center text-xs">〇 完成</td>
-                            <td class="text-center text-xs">合格 / 不合格</td>
+                            <td class="text-center text-xs"></td>
                         `;
                         tbody.appendChild(tr);
                     });
