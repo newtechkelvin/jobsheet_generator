@@ -1057,45 +1057,43 @@
             renderMappingRows();
         }
 
-        // 圖片 OCR 處理函數
-        async function processImageOCR(imageFile) {
-            const loadingModal = document.getElementById('ocr-loading');
-            const statusText = document.getElementById('ocr-status');
-            const progressBar = document.getElementById('ocr-progress');
+// 圖片 OCR 處理函數 (修正 DataCloneError)
+async function processImageOCR(imageFile) {
+    const loadingModal = document.getElementById('ocr-loading');
+    const statusText = document.getElementById('ocr-status');
+    const progressBar = document.getElementById('ocr-progress');
 
-            loadingModal.classList.remove('hidden');
-            progressBar.style.width = '0%';
+    loadingModal.classList.remove('hidden');
+    progressBar.style.width = '0%';
 
-            try {
-                const worker = await Tesseract.createWorker('eng');
-                
-                worker.setParameters({
-                    tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;()-/& ',
-                });
-
-                const ret = await worker.recognize(imageFile, {}, {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            const pct = Math.round(m.progress * 100);
-                            progressBar.style.width = `${pct}%`;
-                            statusText.textContent = `識別進度：${pct}%`;
-                        }
-                    }
-                });
-
-                await worker.terminate();
-
-                const rawLines = ret.data.text.split('\n').filter(line => line.trim().length > 0);
-                parseQuotationLines(rawLines, ret.data.text);
-                showToast("截圖辨識完成！已自動帶入改裝項目。");
-
-            } catch (err) {
-                showToast("OCR 文字辨識失敗，請確認圖片清晰度！", true);
-                console.error("OCR Error:", err);
-            } finally {
-                loadingModal.classList.add('hidden');
+    try {
+        // 1. 正確方式：在 createWorker 時傳入 logger
+        const worker = await Tesseract.createWorker('eng', 1, {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const pct = Math.round(m.progress * 100);
+                    progressBar.style.width = `${pct}%`;
+                    statusText.textContent = `識別進度：${pct}%`;
+                }
             }
-        }
+        });
+
+        // 2. 執行辨識 (不要在 recognize 內傳入 logger 函數)
+        const ret = await worker.recognize(imageFile);
+
+        await worker.terminate();
+
+        const rawLines = ret.data.text.split('\n').filter(line => line.trim().length > 0);
+        parseQuotationLines(rawLines, ret.data.text);
+        showToast("截圖辨識完成！已自動帶入改裝項目。");
+
+    } catch (err) {
+        showToast("OCR 文字辨識失敗，請確認圖片清晰度！", true);
+        console.error("OCR Error:", err);
+    } finally {
+        loadingModal.classList.add('hidden');
+    }
+}
 
         async function handleFileUpload(event) {
             const file = event.target.files[0];
