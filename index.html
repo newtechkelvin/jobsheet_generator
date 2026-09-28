@@ -15,6 +15,8 @@
     </script>
     <!-- SheetJS for Excel handling -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Tesseract.js (前端截圖 OCR 引擎) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <!-- Firebase SDK (v11.6.1) -->
     <script type="module">
@@ -122,6 +124,18 @@
             <span id="toast-msg" class="text-sm font-medium">通知訊息</span>
         </div>
 
+        <!-- OCR 識別進行中載入視窗 -->
+        <div id="ocr-loading" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-white hidden">
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-700">
+                <i class="fa-solid fa-eye text-4xl text-blue-400 animate-bounce mb-3"></i>
+                <h3 class="font-bold text-lg">正在進行 OCR 截圖辨識...</h3>
+                <p id="ocr-status" class="text-xs text-slate-400 mt-1">分析圖片中英文文字，請稍候...</p>
+                <div class="w-full bg-slate-700 h-2 rounded-full mt-4 overflow-hidden">
+                    <div id="ocr-progress" class="bg-blue-500 h-full w-0 transition-all duration-200"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ================= 步驟 1: 報價單解析與對照 ================= -->
         <section id="step1-page" class="space-y-6">
             
@@ -139,9 +153,13 @@
                     <div class="flex items-center space-x-3">
                         <label class="cursor-pointer bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow transition-all flex items-center space-x-2">
                             <i class="fa-solid fa-upload"></i>
-                            <span>上傳 PDF / Excel / TXT</span>
-                            <input type="file" id="file-input" accept=".pdf, .xlsx, .xls, .txt" class="hidden" onchange="handleFileUpload(event)">
+                            <span>上傳 PDF / Excel / 截圖</span>
+                            <input type="file" id="file-input" accept=".pdf, .xlsx, .xls, .txt, .png, .jpg, .jpeg, .webp" class="hidden" onchange="handleFileUpload(event)">
                         </label>
+                        <div class="hidden md:flex items-center space-x-1.5 text-xs text-slate-500 bg-slate-100 px-3 py-2.5 rounded-xl border border-slate-200">
+                            <i class="fa-solid fa-paste text-blue-600"></i>
+                            <span>可直接貼上截圖 (Ctrl + V)</span>
+                        </div>
                     </div>
                 </div>
 
@@ -241,7 +259,7 @@
 
                 <div id="empty-state" class="p-12 text-center text-slate-400">
                     <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
-                    <p class="text-sm">暫無資料，請點擊上方「上傳 PDF / Excel / TXT」。</p>
+                    <p class="text-sm">暫無資料，請點擊上方「上傳」或直接按 Ctrl + V 貼上報價單截圖。</p>
                 </div>
             </div>
 
@@ -499,7 +517,7 @@
         </div>
     </div>
 
-    <!-- 腳本邏輯與 Firebase 整合 -->
+    <!-- 腳本邏輯與 Firebase / OCR 整合 -->
     <script>
         // 全局狀態
         let db = null;
@@ -545,6 +563,18 @@
             loadDictionaryFromLocalStorage();
             renderDictTable();
             updateDictCount();
+        });
+
+        // 監聽 Ctrl + V 貼上截圖事件
+        document.addEventListener('paste', async (event) => {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    await processImageOCR(blob);
+                    break;
+                }
+            }
         });
 
         window.addEventListener('firebase-sdk-ready', () => {
@@ -600,7 +630,6 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // 嚴格依據 Rule 3：先完成 Auth 再執行 Firestore 查詢
                 let userCred;
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     userCred = await signInWithCustomToken(auth, __initial_auth_token);
@@ -612,10 +641,8 @@
                     throw new Error("Firebase 身份驗證失敗");
                 }
 
-                // 嚴格依據 Rule 1：公共 shared 資料路徑
                 const dictCollRef = collection(db, 'artifacts', appId, 'public', 'data', 'dictionary');
 
-                // 訂閱實時變更 (Realtime listener)
                 onSnapshot(dictCollRef, (snapshot) => {
                     const items = [];
                     snapshot.forEach(docSnap => {
@@ -629,7 +656,6 @@
                         updateDictCount();
                         updateCloudStatus(true, "Firebase 團隊雲端同步中 (newtech-system)");
                     } else {
-                        // 如果雲端為空，將預設詞庫灌入 Firebase
                         seedFirestoreDictionary(dictCollRef);
                     }
                 }, (err) => {
@@ -643,7 +669,6 @@
             }
         }
 
-        // 升級雲端狀態燈指示
         function updateCloudStatus(connected, statusMsg) {
             isCloudConnected = connected;
             const dot = document.getElementById('cloud-status-dot');
@@ -661,7 +686,6 @@
             }
         }
 
-        // 初始化雲端預設詞庫資料
         async function seedFirestoreDictionary(collRef) {
             const { doc, setDoc } = window.FirebaseSDK;
             try {
@@ -674,7 +698,6 @@
             }
         }
 
-        // 本機備份儲存 (LocalStorage Backup)
         function loadDictionaryFromLocalStorage() {
             const saved = localStorage.getItem('ntl_dictionary_backup');
             if (saved) {
@@ -690,7 +713,6 @@
             localStorage.setItem('ntl_dictionary_backup', JSON.stringify(dictionary));
         }
 
-        // 詞庫 CRUD 操作 (自動同步雲端)
         async function saveDictModalItem() {
             const kw = document.getElementById('modal-kw').value.trim();
             const zh = document.getElementById('modal-zh').value.trim();
@@ -884,7 +906,6 @@
             }
         }
 
-        // 升級版多關鍵字比對引擎 (支援以逗號分隔多關鍵字 AND 比對，並以精準度評分)
         function matchDictionary(enText) {
             const cleanEn = enText.toLowerCase();
             let bestMatch = null;
@@ -893,11 +914,9 @@
             for (let item of dictionary) {
                 if (!item.keyword) continue;
 
-                // 以逗號、分號或斜線分割成多個必須同時符合的關鍵字子項
                 const subKeywords = item.keyword.split(/[,;/]+/).map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
                 if (subKeywords.length === 0) continue;
 
-                // 檢查是否所有關鍵字都同時出現在這行英文原文中 (包含單複數支援)
                 const allMatched = subKeywords.every(kw => {
                     if (cleanEn.includes(kw)) return true;
                     if (kw.endsWith('s') && cleanEn.includes(kw.slice(0, -1))) return true;
@@ -906,7 +925,6 @@
                 });
 
                 if (allMatched) {
-                    // 計算精準度得分：關鍵字數量越多、長度越長，分數越高
                     const score = subKeywords.reduce((sum, kw) => sum + kw.length, 0) + (subKeywords.length * 20);
                     if (score > highestScore) {
                         highestScore = score;
@@ -925,11 +943,9 @@
         function extractQty(enText) {
             const lower = enText.toLowerCase();
 
-            // 1. 座位數量規則 (避免與日期或重量混淆)
             const seatMatch = lower.match(/(\d+)\s*units?\s*of.*(?:passenger\s*seats|pvc\s*high\s*back)/i) || lower.match(/(\d+)\s*units?\s*of.*seats?/i);
             if (seatMatch) return `${seatMatch[1]}個`;
 
-            // 2. 輪椅升降台規則
             if (lower.includes("wheelchair lift")) {
                 const liftMatch = lower.match(/(\d+|one)\s*units?.*wheelchair\s*lift/i) || lower.match(/wheelchair\s*lift.*(\d+)\s*units?/i);
                 if (liftMatch) {
@@ -939,18 +955,15 @@
                 return "1台";
             }
 
-            // 3. 4點式固定帶
             if (lower.includes("webbing") || lower.includes("securement")) {
                 const webMatch = lower.match(/(\d+)\s*units?/i) || lower.match(/(\d+)\s*sets?/i);
                 if (webMatch) return `${webMatch[1]}套`;
             }
 
-            // 4. 對 (Pair)
             if (lower.includes("a pair") || lower.includes("1 pair")) return "1對";
             const pairMatch = lower.match(/(\d+)\s*pairs?/i);
             if (pairMatch) return `${pairMatch[1]}對`;
 
-            // 5. 通用數量抓取 (過濾大於100的非數量干擾字如 350kg / 2026年)
             const generalMatch = lower.match(/(\d+)\s*(units?|sets?|pcs)/i);
             if (generalMatch) {
                 const num = parseInt(generalMatch[1]);
@@ -1044,11 +1057,53 @@
             renderMappingRows();
         }
 
+        // 圖片 OCR 處理函數
+        async function processImageOCR(imageFile) {
+            const loadingModal = document.getElementById('ocr-loading');
+            const statusText = document.getElementById('ocr-status');
+            const progressBar = document.getElementById('ocr-progress');
+
+            loadingModal.classList.remove('hidden');
+            progressBar.style.width = '0%';
+
+            try {
+                const worker = await Tesseract.createWorker('eng');
+                
+                worker.setParameters({
+                    tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;()-/& ',
+                });
+
+                const ret = await worker.recognize(imageFile, {}, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const pct = Math.round(m.progress * 100);
+                            progressBar.style.width = `${pct}%`;
+                            statusText.textContent = `識別進度：${pct}%`;
+                        }
+                    }
+                });
+
+                await worker.terminate();
+
+                const rawLines = ret.data.text.split('\n').filter(line => line.trim().length > 0);
+                parseQuotationLines(rawLines, ret.data.text);
+                showToast("截圖辨識完成！已自動帶入改裝項目。");
+
+            } catch (err) {
+                showToast("OCR 文字辨識失敗，請確認圖片清晰度！", true);
+                console.error("OCR Error:", err);
+            } finally {
+                loadingModal.classList.add('hidden');
+            }
+        }
+
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            if (file.name.endsWith('.pdf')) {
+            if (file.type.startsWith('image/')) {
+                await processImageOCR(file);
+            } else if (file.name.endsWith('.pdf')) {
                 try {
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -1060,7 +1115,6 @@
                         const textContent = await page.getTextContent();
                         
                         let items = textContent.items;
-                        // 按垂直 Y 座標從上至下，同行按 X 座標排序
                         items.sort((a, b) => {
                             if (Math.abs(a.transform[5] - b.transform[5]) > 4) {
                                 return b.transform[5] - a.transform[5];
@@ -1089,6 +1143,7 @@
                         }
                     }
                     parseQuotationLines(rawLines, fullDocText);
+                    showToast("PDF 讀取成功！已自動帶入項目。");
                 } catch (err) {
                     console.error("PDF 解析錯誤:", err);
                     showToast("PDF 解析失敗，請確認檔案格式！", true);
@@ -1112,7 +1167,6 @@
             let extractedItems = [];
             const textToParse = fullText || lines.join(" ");
 
-            // 1. 表頭元數據抓取
             const refMatch = textToParse.match(/Our ref\s*:\s*([A-Z0-9-]+)/i) || textToParse.match(/(NTL-Q-[0-9-]+)/i);
             if (refMatch) {
                 const qNo = refMatch[1];
@@ -1148,7 +1202,6 @@
                 document.getElementById('meta-preparer').value = "Vincy";
             }
 
-            // 2. 改裝項目精準提取引擎 (採順序編號模式 1., 2., ... 20. 嚴謹解析)
             const numberedRegex = /(?:^|\s)(\d{1,2})\.\s+([\s\S]+?)(?=(?:\s+\d{1,2}\.\s+)|Remarks:|Total Amount:|Yours sincerely|Confirmed|Authorized Chop|Room A|Room C|$)/gi;
             let match;
             let numberedItems = [];
@@ -1165,7 +1218,6 @@
                 numberedItems.sort((a, b) => a.num - b.num);
                 extractedItems = numberedItems.map(i => i.text);
             } else {
-                // 備用無編號模式 (逐行 Supply 合併)
                 let currentItem = "";
                 for (let line of lines) {
                     line = line.trim();
@@ -1194,7 +1246,6 @@
                 if (currentItem.trim()) extractedItems.push(currentItem.trim());
             }
 
-            // 3. 配對詞庫與生成列表
             currentParsedItems = extractedItems.map(enText => {
                 const matched = matchDictionary(enText);
                 return {
