@@ -1127,15 +1127,29 @@
             currentParsedItems.push({ en: "New Modification Item", zh: "新增改裝項目", category: "車身裝嵌", model: "-", qty: "1套" });
             renderMappingRows();
         }
+
+        // 重新自動比對所有項目 (修復無回應問題與增加提示)
         function reMatchAll() {
+            if (!currentParsedItems || currentParsedItems.length === 0) {
+                showToast("目前沒有項目可供比對！", true);
+                return;
+            }
+
+            let matchCount = 0;
+
             currentParsedItems.forEach(item => {
                 const matched = matchDictionary(item.en);
-                item.zh = matched.zh;
-                item.category = matched.category;
-                item.model = matched.model;
-                item.qty = extractQty(item.en);
+                if (matched) {
+                    item.zh = matched.zh;
+                    item.category = matched.category;
+                    item.model = matched.model;
+                    item.qty = extractQty(item.en);
+                    matchCount++;
+                }
             });
+
             renderMappingRows();
+            showToast(`已完成重新比對！共刷新 ${matchCount} 個項目。`);
         }
 
         // 圖片 OCR 處理函數 (已修正 DataCloneError)
@@ -1148,7 +1162,6 @@
             progressBar.style.width = '0%';
 
             try {
-                // 正確傳遞 logger 給 createWorker
                 const worker = await Tesseract.createWorker('eng', 1, {
                     logger: m => {
                         if (m.status === 'recognizing text') {
